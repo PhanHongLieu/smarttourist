@@ -1,9 +1,17 @@
-# Bật công cụ ghi đè đường dẫn
 RewriteEngine On
 
-# Nếu là file hoặc thư mục có thật thì cho phép truy cập trực tiếp
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+# 1. Nếu yêu cầu là một file có thật (như ảnh .jpg, .png, file .css, .js)
+# thì cho phép truy cập trực tiếp, không điều hướng.
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
 
-# Còn lại trỏ về index.php hoặc cho phép chạy các file .php trực tiếp
-RewriteRule ^(.*)$ $1.php [L]
+# 2. Nếu yêu cầu là một thư mục có thật
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# 3. Tự động thêm đuôi .php nếu người dùng không nhập (ví dụ: /detail -> detail.php)
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^([^/]+)$ $1.php [L]
+
+# 4. Nếu bạn muốn dùng Router tập trung vào index.php (tùy chọn)
+# RewriteRule ^ index.php [L]
