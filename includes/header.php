@@ -31,12 +31,12 @@
         </span>
       </div>
 
-      <a href="/smarttourist/public/about.php"
+      <a href="about.php"
          class="hover:text-[var(--gold)] transition-all duration-300 hover:scale-105  text-gray-700">
         Giới thiệu
       </a>
 
-      <a href="/smarttourist/public/contact.php"
+      <a href="contact.php"
          class="hover:text-[var(--gold)] transition-all duration-300 hover:scale-105  text-gray-700">
         Liên hệ
       </a>
