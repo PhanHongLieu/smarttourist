@@ -1,18 +1,18 @@
-FROM php:8.2-apache
+FROM php:8.1-apache
 
-# 1. Cài đặt PDO MySQL
+# Cài đặt extension PDO MySQL để kết nối TiDB/Aiven
 RUN docker-php-ext-install pdo pdo_mysql
 
-# 2. Thay đổi DocumentRoot của Apache sang thư mục public
+# Kích hoạt mod_rewrite cho file .htaccess
+RUN a2enmod rewrite
+
+# Cấu hình Apache trỏ vào thư mục public thay vì thư mục gốc
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# 3. Copy toàn bộ code vào container
+# Copy toàn bộ code vào container
 COPY . /var/www/html/
 
-# 4. Cấp quyền cho thư mục (để tránh lỗi ghi file)
+# Cấp quyền cho thư mục
 RUN chown -R www-data:www-data /var/www/html
-
-RUN a2enmod rewrite
-EXPOSE 80
