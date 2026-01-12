@@ -1,0 +1,9 @@
+# Bật công cụ ghi đè đường dẫn
+RewriteEngine On
+
+# Nếu là file hoặc thư mục có thật thì cho phép truy cập trực tiếp
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Còn lại trỏ về index.php hoặc cho phép chạy các file .php trực tiếp
+RewriteRule ^(.*)$ $1.php [L]
