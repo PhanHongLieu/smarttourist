@@ -137,12 +137,12 @@
   <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-10">
     <?php
     $members = [
-      ['name'=>'Hà Phạm Minh Sáng','role'=>'Tổng Giám Đốc (CEO)','img'=>'../assets/image/ceo.jpg'],
-      ['name'=>'Nông Công Trình','role'=>'Trưởng Phòng Hướng Dẫn Viên','img'=>'../assets/image/leadhd.jpg'],
-      ['name'=>'Lê Kim Chi','role'=>'Trưởng Phòng Kinh Doanh Khách Đoàn','img'=>'../assets/image/leadkd.jpg'],
-      ['name'=>'Hồ Văn Trường','role'=>'Trưởng Phòng Điều Hành','img'=>'../assets/image/leaddh.jpg'],
-      ['name'=>'Trần Minh Ngọc','role'=>'Trưởng Phòng Truyền Thông & Marketing','img'=>'../assets/image/leadtt.jpg'],
-      ['name'=>'Nguyễn Vân Anh','role'=>'Chuyên Viên Kinh Doanh','img'=>'../assets/image/cv.jpg'],
+        ['name'=>'Hà Phạm Minh Sáng','role'=>'Tổng Giám Đốc (CEO)','img'=>'assets/image/ceo.jpg'],
+        ['name'=>'Nông Công Trình','role'=>'Trưởng Phòng Hướng Dẫn Viên','img'=>'assets/image/leadhd.jpg'],
+        ['name'=>'Lê Kim Chi','role'=>'Trưởng Phòng Kinh Doanh Khách Đoàn','img'=>'assets/image/leadkd.jpg'],
+        ['name'=>'Hồ Văn Trường','role'=>'Trưởng Phòng Điều Hành','img'=>'assets/image/leaddh.jpg'],
+        ['name'=>'Trần Minh Ngọc','role'=>'Trưởng Phòng Truyền Thông & Marketing','img'=>'assets/image/leadtt.jpg'],
+        ['name'=>'Nguyễn Vân Anh','role'=>'Chuyên Viên Kinh Doanh','img'=>'assets/image/cv.jpg'],
     ];
 
     foreach ($members as $m): ?>
@@ -166,7 +166,7 @@
     <h2 class="text-3xl md:text-4xl font-bold">Đồng hành cùng SmartTourist</h2>
     <p class="mt-6 text-gray-300 text-lg">Từ Việt Nam đến Châu Á & Châu Âu – chúng tôi sẵn sàng cùng bạn kiến tạo hành trình đáng nhớ.</p>
     <div class="mt-10">
-      <a href="/smarttourist/public/tours.php" class="inline-block bg-gradient-to-r from-[var(--gold)] to-yellow-500 text-black px-12 py-4 rounded-xl font-semibold">Khám phá tour ngay</a>
+      <a href="tours.php" class="inline-block bg-gradient-to-r from-[var(--gold)] to-yellow-500 text-black px-12 py-4 rounded-xl font-semibold">Khám phá tour ngay</a>
     </div>
   </div>
 </section>

@@ -67,9 +67,9 @@ try {
 <section class="relative overflow-hidden text-white min-h-screen flex items-center">
   <?php
     $bgImages = [
-      '../assets/image/hero-1.webp', '../assets/image/hero-2.jpg', '../assets/image/hero-3.webp',
-      '../assets/image/hero-4.jpg', '../assets/image/hero-5.jpg', '../assets/image/hero-6.webp',
-      '../assets/image/hero-7.jpg', '../assets/image/hero-8.jpg', '../assets/image/hero-9.jpg',
+      'assets/image/hero-1.webp', 'assets/image/hero-2.jpg', 'assets/image/hero-3.webp',
+      'assets/image/hero-4.jpg', 'assets/image/hero-5.jpg', 'assets/image/hero-6.webp',
+      'assets/image/hero-7.jpg', 'assets/image/hero-8.jpg', 'assets/image/hero-9.jpg',
     ];
   ?>
 
@@ -101,11 +101,11 @@ try {
       </p>
 
       <div class="flex flex-wrap gap-4 mb-10">
-        <a href="/smarttourist/public/tours.php"
+        <a href="tours.php"
            class="bg-[var(--gold)] text-[var(--navy)] px-10 py-5 rounded-2xl font-bold hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-500/20 active:scale-95 text-center">
           Khám phá tour ngay
         </a>
-        <a href="/smarttourist/public/help.php"
+        <a href="help.php"
            class="glass-card px-10 py-5 rounded-2xl font-bold hover:bg-white/20 transition-all active:scale-95 text-center">
           Cách chúng tôi vận hành
         </a>
@@ -138,7 +138,7 @@ try {
         <p class="text-gray-500 mt-4 leading-relaxed">Những hành trình được thiết kế tỉ mỉ, dựa trên sở thích và xu hướng du lịch của khách hàng SmartTourist trong năm 2026.</p>
         <div class="h-1.5 w-24 bg-[var(--gold)] mt-6 rounded-full"></div>
       </div>
-      <a href="/smarttourist/public/tours.php" class="bg-[var(--navy)] text-white px-6 py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center gap-2 group">
+      <a href="tours.php" class="bg-[var(--navy)] text-white px-6 py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center gap-2 group">
         Xem toàn bộ danh sách <span class="group-hover:translate-x-1 transition-transform">→</span>
       </a>
     </div>
@@ -230,10 +230,10 @@ try {
         </div>
 
         <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          <a href="/smarttourist/public/tours.php" class="bg-[var(--navy)] text-white px-8 py-3 rounded-xl font-bold hover:shadow-lg transition-all text-sm text-center">
+          <a href="tours.php" class="bg-[var(--navy)] text-white px-8 py-3 rounded-xl font-bold hover:shadow-lg transition-all text-sm text-center">
             Xem ưu đãi
           </a>
-          <a href="/contact.php" class="bg-white/30 backdrop-blur border border-[var(--navy)]/20 text-[var(--navy)] px-8 py-3 rounded-xl font-bold hover:bg-white/50 transition-all text-sm text-center">
+          <a href="contact.php" class="bg-white/30 backdrop-blur border border-[var(--navy)]/20 text-[var(--navy)] px-8 py-3 rounded-xl font-bold hover:bg-white/50 transition-all text-sm text-center">
             Tư vấn ngay
           </a>
         </div>

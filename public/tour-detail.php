@@ -67,7 +67,7 @@ $policies   = $pdo->query("SELECT * FROM tour_policy WHERE tour_id=$tourId")->fe
 <!-- ================= BREADCRUMB ================= -->
 <div class="container mx-auto px-6 mt-6 text-sm text-gray-600">
   <a href="/" class="hover:underline">Trang chủ</a> /
-  <a href="/smarttourist/pages/tours.php" class="hover:underline">Tour</a> /
+  <a href="tours.php" class="hover:underline">Tour</a> /
   <span class="text-gray-800"><?= e($tour['title']) ?></span>
 </div>
 
@@ -79,7 +79,7 @@ $policies   = $pdo->query("SELECT * FROM tour_policy WHERE tour_id=$tourId")->fe
 <!-- HERO -->
 <div class="bg-white rounded-xl overflow-hidden shadow">
   <img
-    src="<?= e($tour['main_image'] ?: '/smarttourist/assets/image/hero-1.webp') ?>"
+    src="<?= e($tour['main_image'] ?: 'assets/image/hero-1.webp') ?>"
     class="w-full h-[420px] object-cover"
   >
   <div class="p-6">

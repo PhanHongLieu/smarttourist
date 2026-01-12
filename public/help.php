@@ -23,8 +23,8 @@ require_once __DIR__ . '/../config/database.php';
       <h1 class="text-3xl md:text-4xl font-bold">SmartTourist hoạt động thế nào</h1>
       <p class="mt-3 text-gray-200 max-w-2xl mx-auto">Tìm, so sánh và đặt tour dễ dàng — chúng tôi tổng hợp hành trình, giá và điều khoản để bạn chọn chuyến đi phù hợp.</p>
       <div class="mt-6 flex justify-center gap-4">
-        <a href="/smarttourist/public/tours.php" class="inline-block bg-[var(--gold)] text-black px-5 py-3 rounded-lg font-semibold">Xem tour</a>
-        <a href="/smarttourist/public/contact.php" class="inline-block border border-white/30 text-white px-5 py-3 rounded-lg">Liên hệ hỗ trợ</a>
+        <a href="tours.php" class="inline-block bg-[var(--gold)] text-black px-5 py-3 rounded-lg font-semibold">Xem tour</a>
+        <a href="contact.php" class="inline-block border border-white/30 text-white px-5 py-3 rounded-lg">Liên hệ hỗ trợ</a>
       </div>
     </div>
   </header>
@@ -85,7 +85,7 @@ require_once __DIR__ . '/../config/database.php';
   </section>
 
   <div class="mt-8 text-center">
-    <a href="/smarttourist/public/tours.php" class="inline-block px-6 py-3 bg-[var(--gold)] text-black rounded-lg font-semibold">Xem tour ngay</a>
+    <a href="tours.php" class="inline-block px-6 py-3 bg-[var(--gold)] text-black rounded-lg font-semibold">Xem tour ngay</a>
   </div>
 
 </main>

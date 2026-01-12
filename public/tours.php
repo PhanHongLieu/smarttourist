@@ -228,7 +228,7 @@ try {
               // xử lý ảnh
               $img = $t['main_image'];
               if (!$img) {
-                $img = '/smarttourist/assets/image/hero-1.webp';
+                $img = 'assets/image/hero-1.webp';
               }
             ?>
             <article class="bg-white rounded-xl overflow-hidden shadow hover:shadow-lg transition">
