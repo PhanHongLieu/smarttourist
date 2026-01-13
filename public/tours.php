@@ -200,7 +200,7 @@ try {
   <title>Danh sách tour — SmartTourist</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/smarttourist/assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css">
   <style>
     :root {
       --gold: #f5b942;

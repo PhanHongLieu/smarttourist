@@ -17,7 +17,7 @@
     .animate-float-medium{ animation: floatY 3s ease-in-out infinite; }
     .animate-float-fast{ animation: floatY 2.6s ease-in-out infinite; }
   </style>
-  <link rel="stylesheet" href="/smarttourist/assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body class="overflow-x-hidden">
 <?php include __DIR__ . '/../includes/header.php'; ?>

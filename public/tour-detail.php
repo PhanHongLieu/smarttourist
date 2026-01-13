@@ -51,7 +51,7 @@ $policies   = $pdo->query("SELECT * FROM tour_policy WHERE tour_id=$tourId")->fe
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- CSS chung -->
-  <link rel="stylesheet" href="/smarttourist/assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css">
 
   <style>
     :root {

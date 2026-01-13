@@ -39,7 +39,7 @@ $serverTotal = $qty_adult * $priceAdult + $qty_child * $priceChild + $qty_baby *
 <!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
 
-<link rel="stylesheet" href="/smarttourist/assets/css/style.css">
+<link rel="stylesheet" href="assets/css/style.css">
 <style>
 :root {
     --gold: #f5b942;
