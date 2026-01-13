@@ -8,7 +8,7 @@
     <a href="/smarttourist/public/index.php" class="flex items-center">
       <div class="h-20 flex items-center justify-center">
         <img
-          src="../assets/image/logo.png"
+          src="assets/image/logo.png"
           alt="SmartTourist"
           class="h-20 w-auto object-contain"
         />
