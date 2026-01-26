@@ -5,7 +5,7 @@
   <div class="container mx-auto px-6 flex items-center justify-between h-16">
 
     <!-- ===== LOGO ===== -->
-    <a href="/smarttourist/public/index.php" class="flex items-center">
+    <a href="/index.php" class="flex items-center">
       <div class="h-20 flex items-center justify-center">
         <img
           src="assets/image/logo.png"
