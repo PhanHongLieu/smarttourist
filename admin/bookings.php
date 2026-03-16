@@ -16,6 +16,13 @@ function tableHasColumn(PDO $pdo, string $table, string $column): bool
     return (bool)$stmt->fetch();
 }
 
+function tableExists(PDO $pdo, string $table): bool
+{
+    $stmt = $pdo->prepare('SHOW TABLES LIKE :table_name');
+    $stmt->execute(['table_name' => $table]);
+    return (bool)$stmt->fetchColumn();
+}
+
 function ensureBookingPaymentColumns(PDO $pdo): void
 {
     $ddlMap = [
@@ -53,11 +60,18 @@ function redirectWithMessage(string $message, string $type = 'success', string $
     exit;
 }
 
-ensureBookingPaymentColumns($pdo);
+$bookingsTableExists = tableExists($pdo, 'bookings');
+if ($bookingsTableExists) {
+    ensureBookingPaymentColumns($pdo);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $returnQuery = (string)($_POST['return_qs'] ?? '');
+
+    if (!$bookingsTableExists) {
+        redirectWithMessage('Bang bookings chua ton tai trong database.', 'error', $returnQuery);
+    }
 
     if ($action === 'mark_paid') {
         $bookingId = (int)($_POST['booking_id'] ?? 0);
@@ -147,23 +161,25 @@ if ($filterKeyword !== '') {
 }
 
 $bookings = [];
-try {
-    $whereSql = count($where) > 0 ? ('WHERE ' . implode(' AND ', $where)) : '';
-    $sql = "
-        SELECT b.*, t.title AS tour_title
-        FROM bookings b
-        LEFT JOIN tours t ON b.tour_id = t.id
-        {$whereSql}
-        ORDER BY b.created_at DESC, b.id DESC
-    ";
-    $stmt = $pdo->prepare($sql);
-    foreach ($bindings as $key => $value) {
-        $stmt->bindValue(':' . $key, $value);
+if ($bookingsTableExists) {
+    try {
+        $whereSql = count($where) > 0 ? ('WHERE ' . implode(' AND ', $where)) : '';
+        $sql = "
+            SELECT b.*, t.title AS tour_title
+            FROM bookings b
+            LEFT JOIN tours t ON b.tour_id = t.id
+            {$whereSql}
+            ORDER BY b.created_at DESC, b.id DESC
+        ";
+        $stmt = $pdo->prepare($sql);
+        foreach ($bindings as $key => $value) {
+            $stmt->bindValue(':' . $key, $value);
+        }
+        $stmt->execute();
+        $bookings = $stmt->fetchAll();
+    } catch (Throwable $e) {
+        $bookings = [];
     }
-    $stmt->execute();
-    $bookings = $stmt->fetchAll();
-} catch (Throwable $e) {
-    $bookings = [];
 }
 
 $flashMessage = (string)($_GET['msg'] ?? '');
@@ -208,7 +224,13 @@ $returnQuery = http_build_query($returnParams);
             </div>
         <?php endif; ?>
 
-        <section class="bg-white rounded-xl shadow p-4">
+        <?php if (!$bookingsTableExists): ?>
+            <section class="bg-red-100 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+                Khong tim thay bang bookings trong database. Vui long tao bang nay truoc khi quan ly dat tour.
+            </section>
+        <?php endif; ?>
+
+        <section class="bg-white rounded-xl shadow p-4 <?= !$bookingsTableExists ? 'opacity-60 pointer-events-none' : '' ?>">
             <form method="get" class="grid md:grid-cols-4 gap-3 items-end">
                 <label class="block">
                     <span class="text-xs text-slate-600">Phuong thuc</span>
@@ -241,7 +263,7 @@ $returnQuery = http_build_query($returnParams);
             </form>
         </section>
 
-        <section class="bg-white rounded-xl shadow overflow-hidden">
+        <section class="bg-white rounded-xl shadow overflow-hidden <?= !$bookingsTableExists ? 'opacity-60' : '' ?>">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-slate-600">
