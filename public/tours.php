@@ -122,17 +122,8 @@ foreach ($ranges as $r) {
   }
 }
 
-// status (exact match) — if provided, respect it; otherwise if any filter used, default to PUBLISHED
-if (!empty($_GET['status'])) {
-  $clauses[] = "status = :status";
-  $bindings[':status'] = $_GET['status'];
-  $params['status'] = $_GET['status'];
-  $filtersApplied = true;
-}
-
-if ($filtersApplied && empty($_GET['status'])) {
-  $clauses[] = "status = 'PUBLISHED'";
-}
+// Always hide non-public tours on frontend.
+$clauses[] = "status = 'PUBLISHED'";
 
 $where = '';
 if (count($clauses) > 0) {
