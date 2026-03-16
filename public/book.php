@@ -67,7 +67,7 @@ $serverTotal = $qty_adult * $priceAdult + $qty_child * $priceChild + $qty_baby *
 <input type="hidden" name="adult" id="hidden_adult" value="<?= $qty_adult ?>">
 <input type="hidden" name="child" id="hidden_child" value="<?= $qty_child ?>">
 <input type="hidden" name="baby" id="hidden_baby" value="<?= $qty_baby ?>">
-<input type="hidden" name="server_total" value="<?= $serverTotal ?>">
+<input type="hidden" name="server_total" id="hidden_server_total" value="<?= $serverTotal ?>">
 
 <!-- ✅ FLEX LAYOUT -->
 <div class="flex flex-col lg:flex-row gap-8">
@@ -107,18 +107,16 @@ $serverTotal = $qty_adult * $priceAdult + $qty_child * $priceChild + $qty_baby *
 <div class="space-y-2 text-sm">
 <?php
 $payments = [
-    'ATM'=>'Thẻ ATM nội địa',
-    'CREDIT'=>'Thẻ tín dụng',
-    'BANK'=>'Chuyển khoản',
-    'CASH'=>'Tiền mặt',
-    'MOMO'=>'Ví MoMo'
+    'MOMO'=>'Vi MoMo',
+    'CASH'=>'Tien mat'
 ];
 foreach ($payments as $k=>$v): ?>
 <label class="flex gap-2">
-<input type="radio" name="payment_method" value="<?= $k ?>" required> <?= $v ?>
+<input type="radio" name="payment_method" value="<?= $k ?>" <?= $k === 'CASH' ? 'checked' : '' ?> required> <?= $v ?>
 </label>
 <?php endforeach; ?>
 </div>
+<p class="text-xs text-gray-500 mt-3">MoMo: tao ma thanh toan va xac nhan sau. Tien mat: thanh toan tai van phong khi khoi hanh.</p>
 </div>
 
 <!-- TERMS -->
@@ -318,9 +316,11 @@ const priceChild = <?= $priceChild ?>;
 const priceBaby  = <?= $priceBaby ?>;
 
 function calcTotal(){
-    const a = parseInt(document.getElementById('aside_adult').value) || 0;
+    const a = Math.max(1, parseInt(document.getElementById('aside_adult').value) || 1);
     const c = parseInt(document.getElementById('aside_child').value) || 0;
     const b = parseInt(document.getElementById('aside_baby').value) || 0;
+    document.getElementById('aside_adult').value = a;
+
     const total = a*priceAdult + c*priceChild + b*priceBaby;
     document.getElementById('totalPrice').innerText = total.toLocaleString('vi-VN') + ' ₫';
     // sync hidden inputs for POST
@@ -328,10 +328,11 @@ function calcTotal(){
     document.getElementById('hidden_child').value = c;
     document.getElementById('hidden_baby').value = b;
     document.getElementById('hidden_departure_date').value = document.getElementById('aside_date').value;
+    document.getElementById('hidden_server_total').value = total;
 }
 
 function syncDate(){
-    document.getElementById('departureDateInput').value = document.getElementById('aside_date').value;
+    document.getElementById('hidden_departure_date').value = document.getElementById('aside_date').value;
     calcTotal();
 }
 
