@@ -329,24 +329,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
-$editingTour = null;
-
-if ($editId > 0) {
-    $stmt = $pdo->prepare('SELECT * FROM tours WHERE id = :id LIMIT 1');
-    $stmt->execute(['id' => $editId]);
-    $editingTour = $stmt->fetch();
-}
-
 $tours = [];
 try {
-    $stmt = $pdo->query('SELECT id, code, title, slug, destination, duration_days, duration_nights, price_adult, status, created_at FROM tours ORDER BY created_at DESC, id DESC');
+    $stmt = $pdo->query('SELECT id, code, title, slug, overview, description, departure_location, destination, vehicle, main_image, highlight, policy, duration_days, duration_nights, price_adult, price_child, price_baby, max_passengers, status, created_at FROM tours ORDER BY created_at DESC, id DESC');
     $tours = $stmt->fetchAll();
 } catch (Throwable $e) {
     $tours = [];
 }
 
-$formData = $editingTour ?: [
+$formDefaults = [
     'id' => 0,
     'code' => '',
     'title' => '',
@@ -368,7 +359,15 @@ $formData = $editingTour ?: [
     'status' => $publishedStatus,
 ];
 
-$isEditing = $editingTour !== false && $editingTour !== null;
+$totalTours = count($tours);
+$visibleTours = 0;
+foreach ($tours as $tour) {
+    if (($tour['status'] ?? '') === $publishedStatus) {
+        $visibleTours++;
+    }
+}
+$hiddenTours = $totalTours - $visibleTours;
+
 $message = $_GET['msg'] ?? '';
 $messageType = $_GET['type'] ?? 'success';
 ?>
@@ -379,30 +378,68 @@ $messageType = $_GET['type'] ?? 'success';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Quan tri tour | SmartTourist</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --brand: #0f172a;
+            --accent: #0284c7;
+            --soft: #e0f2fe;
+        }
+
+        body {
+            background: radial-gradient(circle at top left, #f0f9ff 0%, #f8fafc 45%, #eef2ff 100%);
+        }
+
+        .panel {
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(6px);
+        }
+    </style>
 </head>
-<body class="bg-slate-100">
+<body class="min-h-screen text-slate-800">
     <main class="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <div class="flex items-center justify-between gap-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-slate-800">Quan tri tour</h1>
-                <p class="text-sm text-slate-600">Them, sua, xoa va an/hien tour.</p>
+                <p class="text-xs uppercase tracking-[0.22em] text-sky-700 font-semibold">SmartTourist Admin</p>
+                <h1 class="text-3xl font-bold text-slate-900 mt-1">Quan tri tour</h1>
+                <p class="text-sm text-slate-600 mt-1">Them, sua, xoa va an/hien tour voi thao tac nhanh.</p>
             </div>
-            <div class="flex items-center gap-2">
-                <a href="bookings.php" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm">Dat tour</a>
-                <a href="../public/index.php" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm">Ve trang chu</a>
-                <a href="logout.php" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm">Dang xuat</a>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" id="btnAddTour" class="px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700">+ Them tour</button>
+                <a href="bookings.php" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">Dat tour</a>
+                <a href="/index.php" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800">Ve trang chu</a>
+                <a href="logout.php" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm hover:bg-rose-700">Dang xuat</a>
             </div>
         </div>
 
+        <section class="grid gap-4 md:grid-cols-3">
+            <article class="panel rounded-2xl p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Tong so tour</p>
+                <p class="text-3xl font-bold mt-1 text-slate-900"><?= (int)$totalTours ?></p>
+            </article>
+            <article class="panel rounded-2xl p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Tour dang hien</p>
+                <p class="text-3xl font-bold mt-1 text-emerald-700"><?= (int)$visibleTours ?></p>
+            </article>
+            <article class="panel rounded-2xl p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Tour dang an</p>
+                <p class="text-3xl font-bold mt-1 text-amber-700"><?= (int)$hiddenTours ?></p>
+            </article>
+        </section>
+
         <?php if ($message !== ''): ?>
-            <div class="rounded-lg px-4 py-3 text-sm <?= $messageType === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' ?>">
-                <?= e($message) ?>
+            <div id="flashToast" class="fixed top-5 right-5 z-50 rounded-xl px-4 py-3 text-sm shadow-lg <?= $messageType === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' ?>">
+                <div class="flex items-start gap-3">
+                    <p><?= e($message) ?></p>
+                    <button type="button" id="closeToast" class="text-xs font-semibold opacity-70 hover:opacity-100">Dong</button>
+                </div>
             </div>
         <?php endif; ?>
 
-        <section class="bg-white rounded-xl shadow overflow-hidden">
-            <div class="p-4 border-b border-slate-200">
-                <h2 class="text-lg font-semibold text-slate-800">Danh sach tour</h2>
+        <section class="panel rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-4 border-b border-slate-200 flex items-center justify-between gap-2">
+                <h2 class="text-lg font-semibold text-slate-900">Danh sach tour</h2>
+                <p class="text-xs text-slate-500">Nhap sua nhanh bang modal, khong can chuyen trang.</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
@@ -415,14 +452,14 @@ $messageType = $_GET['type'] ?? 'success';
                             <th class="px-4 py-3 text-left">Thoi gian</th>
                             <th class="px-4 py-3 text-left">Gia nguoi lon</th>
                             <th class="px-4 py-3 text-left">Trang thai</th>
-                            <th class="px-4 py-3 text-left">Thao tac</th>
+                            <th class="px-4 py-3 text-right">Thao tac</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!empty($tours)): ?>
                             <?php foreach ($tours as $tour): ?>
                                 <?php $isPublished = $tour['status'] === $publishedStatus; ?>
-                                <tr class="border-t border-slate-100">
+                                <tr class="border-t border-slate-100 hover:bg-slate-50/70 transition">
                                     <td class="px-4 py-3"><?= (int)$tour['id'] ?></td>
                                     <td class="px-4 py-3"><?= e($tour['code']) ?></td>
                                     <td class="px-4 py-3">
@@ -437,24 +474,14 @@ $messageType = $_GET['type'] ?? 'success';
                                             <?= e($tour['status']) ?>
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3">
-                                        <div class="flex flex-wrap gap-2">
-                                            <a href="tours.php?edit=<?= (int)$tour['id'] ?>" class="px-3 py-1 rounded bg-blue-600 text-white text-xs">Sua</a>
-
-                                            <form method="post" onsubmit="return confirm('Ban chac chan muon <?= $isPublished ? 'an' : 'hien' ?> tour nay?');">
-                                                <input type="hidden" name="action" value="toggle">
-                                                <input type="hidden" name="id" value="<?= (int)$tour['id'] ?>">
-                                                <input type="hidden" name="current_status" value="<?= e($tour['status']) ?>">
-                                                <button type="submit" class="px-3 py-1 rounded <?= $isPublished ? 'bg-amber-500 text-black' : 'bg-emerald-600 text-white' ?> text-xs">
-                                                    <?= $isPublished ? 'An' : 'Hien' ?>
-                                                </button>
-                                            </form>
-
-                                            <form method="post" onsubmit="return confirm('Ban chac chan muon xoa tour nay? Du lieu lien quan se bi xoa.');">
-                                                <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="id" value="<?= (int)$tour['id'] ?>">
-                                                <button type="submit" class="px-3 py-1 rounded bg-red-600 text-white text-xs">Xoa</button>
-                                            </form>
+                                    <td class="px-4 py-3 text-right">
+                                        <?php $tourJson = e(json_encode($tour, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); ?>
+                                        <div class="flex flex-wrap justify-end gap-2">
+                                            <button type="button" class="btnEdit px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700" data-tour="<?= $tourJson ?>">Chinh sua</button>
+                                            <button type="button" class="btnToggle px-3 py-1.5 rounded-lg text-xs font-semibold <?= $isPublished ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' ?>" data-id="<?= (int)$tour['id'] ?>" data-current-status="<?= e($tour['status']) ?>" data-title="<?= e($tour['title']) ?>" data-mode="<?= $isPublished ? 'hide' : 'show' ?>">
+                                                <?= $isPublished ? 'An' : 'Hien' ?>
+                                            </button>
+                                            <button type="button" class="btnDelete px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 text-xs font-semibold hover:bg-rose-200" data-id="<?= (int)$tour['id'] ?>" data-title="<?= e($tour['title']) ?>">Xoa</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -468,125 +495,305 @@ $messageType = $_GET['type'] ?? 'success';
                 </table>
             </div>
         </section>
-
-        <section class="bg-white rounded-xl shadow">
-            <div class="p-4 border-b border-slate-200 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-slate-800"><?= $isEditing ? 'Sua tour' : 'Them tour moi' ?></h2>
-                <?php if ($isEditing): ?>
-                    <a href="tours.php" class="text-sm text-slate-600 underline">Tao moi</a>
-                <?php endif; ?>
-            </div>
-
-            <form method="post" class="p-4 grid md:grid-cols-2 gap-4">
-                <input type="hidden" name="action" value="<?= $isEditing ? 'update' : 'add' ?>">
-                <?php if ($isEditing): ?>
-                    <input type="hidden" name="id" value="<?= (int)$formData['id'] ?>">
-                <?php endif; ?>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Ma tour</span>
-                    <input name="code" value="<?= e($formData['code']) ?>" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="VD: ST-001">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Ten tour *</span>
-                    <input name="title" required value="<?= e($formData['title']) ?>" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Ten tour">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Slug (de trong de tu tao)</span>
-                    <input name="slug" value="<?= e($formData['slug']) ?>" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="vd: tour-da-lat-3n2d">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Trang thai</span>
-                    <select name="status" class="mt-1 w-full border rounded-lg px-3 py-2">
-                        <?php foreach ($statusOptions as $status): ?>
-                            <option value="<?= e($status) ?>" <?= $formData['status'] === $status ? 'selected' : '' ?>><?= e($status) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Noi khoi hanh</span>
-                    <input name="departure_location" value="<?= e($formData['departure_location']) ?>" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="TP.HCM">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Diem den</span>
-                    <input name="destination" value="<?= e($formData['destination']) ?>" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Da Lat">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Phuong tien</span>
-                    <input name="vehicle" value="<?= e($formData['vehicle']) ?>" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Xe giuong nam">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">URL anh dai dien</span>
-                    <input name="main_image" value="<?= e($formData['main_image']) ?>" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="assets/image/...">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">So ngay</span>
-                    <input type="number" min="1" name="duration_days" value="<?= (int)$formData['duration_days'] ?>" class="mt-1 w-full border rounded-lg px-3 py-2">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">So dem</span>
-                    <input type="number" min="0" name="duration_nights" value="<?= (int)$formData['duration_nights'] ?>" class="mt-1 w-full border rounded-lg px-3 py-2">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Gia nguoi lon</span>
-                    <input type="number" min="0" step="0.01" name="price_adult" value="<?= (float)$formData['price_adult'] ?>" class="mt-1 w-full border rounded-lg px-3 py-2">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Gia tre em</span>
-                    <input type="number" min="0" step="0.01" name="price_child" value="<?= (float)$formData['price_child'] ?>" class="mt-1 w-full border rounded-lg px-3 py-2">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">Gia em be</span>
-                    <input type="number" min="0" step="0.01" name="price_baby" value="<?= (float)$formData['price_baby'] ?>" class="mt-1 w-full border rounded-lg px-3 py-2">
-                </label>
-
-                <label class="block">
-                    <span class="text-sm text-slate-700">So khach toi da</span>
-                    <input type="number" min="1" name="max_passengers" value="<?= (int)$formData['max_passengers'] ?>" class="mt-1 w-full border rounded-lg px-3 py-2">
-                </label>
-
-                <label class="block md:col-span-2">
-                    <span class="text-sm text-slate-700">Tong quan</span>
-                    <textarea name="overview" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Mo ta ngan"><?= e($formData['overview']) ?></textarea>
-                </label>
-
-                <label class="block md:col-span-2">
-                    <span class="text-sm text-slate-700">Mo ta chi tiet</span>
-                    <textarea name="description" rows="4" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Noi dung mo ta"><?= e($formData['description']) ?></textarea>
-                </label>
-
-                <label class="block md:col-span-2">
-                    <span class="text-sm text-slate-700">Diem noi bat</span>
-                    <textarea name="highlight" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Diem noi bat cua tour"><?= e($formData['highlight']) ?></textarea>
-                </label>
-
-                <label class="block md:col-span-2">
-                    <span class="text-sm text-slate-700">Chinh sach</span>
-                    <textarea name="policy" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Chinh sach hoan huy, tre em...\n"><?= e($formData['policy']) ?></textarea>
-                </label>
-
-                <div class="md:col-span-2 flex items-center gap-3">
-                    <button type="submit" class="px-5 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold">
-                        <?= $isEditing ? 'Cap nhat tour' : 'Them tour' ?>
-                    </button>
-                    <?php if ($isEditing): ?>
-                        <a href="tours.php" class="px-5 py-2 rounded-lg border text-sm text-slate-700">Huy sua</a>
-                    <?php endif; ?>
-                </div>
-            </form>
-        </section>
     </main>
+
+    <form id="actionForm" method="post" class="hidden">
+        <input type="hidden" name="action" id="actionFormAction" value="">
+        <input type="hidden" name="id" id="actionFormId" value="">
+        <input type="hidden" name="current_status" id="actionFormCurrentStatus" value="">
+    </form>
+
+    <div id="tourModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-slate-900/60" id="tourModalBackdrop"></div>
+        <div class="relative max-w-5xl mx-auto my-6 px-4">
+            <div class="panel rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+                <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 id="tourModalTitle" class="text-xl font-semibold text-slate-900">Them tour moi</h3>
+                    <button type="button" id="tourModalClose" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Dong</button>
+                </div>
+                <form id="tourForm" method="post" class="p-4 overflow-y-auto">
+                    <input type="hidden" name="action" id="tourFormAction" value="add">
+                    <input type="hidden" name="id" id="tourFormId" value="0">
+
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Ma tour</span>
+                            <input name="code" id="f_code" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="VD: ST-001">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Ten tour *</span>
+                            <input name="title" id="f_title" required class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Ten tour">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Slug (de trong de tu tao)</span>
+                            <input name="slug" id="f_slug" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="vd: tour-da-lat-3n2d">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Trang thai</span>
+                            <select name="status" id="f_status" class="mt-1 w-full border rounded-lg px-3 py-2">
+                                <?php foreach ($statusOptions as $status): ?>
+                                    <option value="<?= e($status) ?>"><?= e($status) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Noi khoi hanh</span>
+                            <input name="departure_location" id="f_departure_location" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="TP.HCM">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Diem den</span>
+                            <input name="destination" id="f_destination" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Da Lat">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Phuong tien</span>
+                            <input name="vehicle" id="f_vehicle" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Xe giuong nam">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">URL anh dai dien</span>
+                            <input name="main_image" id="f_main_image" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="assets/image/...">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">So ngay</span>
+                            <input type="number" min="1" name="duration_days" id="f_duration_days" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['duration_days'] ?>">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">So dem</span>
+                            <input type="number" min="0" name="duration_nights" id="f_duration_nights" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['duration_nights'] ?>">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Gia nguoi lon</span>
+                            <input type="number" min="0" step="0.01" name="price_adult" id="f_price_adult" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_adult'] ?>">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Gia tre em</span>
+                            <input type="number" min="0" step="0.01" name="price_child" id="f_price_child" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_child'] ?>">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">Gia em be</span>
+                            <input type="number" min="0" step="0.01" name="price_baby" id="f_price_baby" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_baby'] ?>">
+                        </label>
+
+                        <label class="block">
+                            <span class="text-sm text-slate-700">So khach toi da</span>
+                            <input type="number" min="1" name="max_passengers" id="f_max_passengers" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['max_passengers'] ?>">
+                        </label>
+
+                        <label class="block md:col-span-2">
+                            <span class="text-sm text-slate-700">Tong quan</span>
+                            <textarea name="overview" id="f_overview" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Mo ta ngan"></textarea>
+                        </label>
+
+                        <label class="block md:col-span-2">
+                            <span class="text-sm text-slate-700">Mo ta chi tiet</span>
+                            <textarea name="description" id="f_description" rows="4" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Noi dung mo ta"></textarea>
+                        </label>
+
+                        <label class="block md:col-span-2">
+                            <span class="text-sm text-slate-700">Diem noi bat</span>
+                            <textarea name="highlight" id="f_highlight" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Diem noi bat cua tour"></textarea>
+                        </label>
+
+                        <label class="block md:col-span-2">
+                            <span class="text-sm text-slate-700">Chinh sach</span>
+                            <textarea name="policy" id="f_policy" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Chinh sach hoan huy, tre em..."></textarea>
+                        </label>
+                    </div>
+
+                    <div class="sticky bottom-0 bg-white border-t border-slate-200 pt-4 mt-6 flex items-center justify-end gap-3">
+                        <button type="button" id="tourFormCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Huy</button>
+                        <button type="submit" id="tourFormSubmit" class="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Luu tour</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-slate-900/60" id="confirmBackdrop"></div>
+        <div class="relative max-w-md mx-auto mt-40 px-4">
+            <div class="panel rounded-2xl shadow-2xl p-5">
+                <h3 id="confirmTitle" class="text-lg font-semibold text-slate-900">Xac nhan thao tac</h3>
+                <p id="confirmMessage" class="text-sm text-slate-600 mt-2">Ban co chac chan muon tiep tuc?</p>
+                <div class="mt-5 flex items-center justify-end gap-2">
+                    <button type="button" id="confirmCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Huy</button>
+                    <button type="button" id="confirmAccept" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Xac nhan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const defaults = <?= json_encode($formDefaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+        const tourModal = document.getElementById('tourModal');
+        const tourModalTitle = document.getElementById('tourModalTitle');
+        const tourFormAction = document.getElementById('tourFormAction');
+        const tourFormId = document.getElementById('tourFormId');
+        const tourFormSubmit = document.getElementById('tourFormSubmit');
+
+        function setField(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = value ?? '';
+        }
+
+        function openTourModal(mode, data) {
+            const source = data || defaults;
+            const isEdit = mode === 'edit';
+
+            tourModalTitle.textContent = isEdit ? 'Chinh sua tour' : 'Them tour moi';
+            tourFormAction.value = isEdit ? 'update' : 'add';
+            tourFormId.value = isEdit ? (source.id || 0) : 0;
+            tourFormSubmit.textContent = isEdit ? 'Cap nhat tour' : 'Them tour';
+
+            setField('f_code', source.code);
+            setField('f_title', source.title);
+            setField('f_slug', source.slug);
+            setField('f_overview', source.overview);
+            setField('f_description', source.description);
+            setField('f_departure_location', source.departure_location);
+            setField('f_destination', source.destination);
+            setField('f_vehicle', source.vehicle);
+            setField('f_main_image', source.main_image);
+            setField('f_highlight', source.highlight);
+            setField('f_policy', source.policy);
+            setField('f_duration_days', source.duration_days || 1);
+            setField('f_duration_nights', source.duration_nights || 0);
+            setField('f_price_adult', source.price_adult || 0);
+            setField('f_price_child', source.price_child || 0);
+            setField('f_price_baby', source.price_baby || 0);
+            setField('f_max_passengers', source.max_passengers || 1);
+            setField('f_status', source.status || defaults.status);
+
+            tourModal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function closeTourModal() {
+            tourModal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        document.getElementById('btnAddTour')?.addEventListener('click', () => openTourModal('add', defaults));
+        document.getElementById('tourModalClose')?.addEventListener('click', closeTourModal);
+        document.getElementById('tourModalBackdrop')?.addEventListener('click', closeTourModal);
+        document.getElementById('tourFormCancel')?.addEventListener('click', closeTourModal);
+
+        document.querySelectorAll('.btnEdit').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                try {
+                    const data = JSON.parse(btn.dataset.tour || '{}');
+                    openTourModal('edit', data);
+                } catch (e) {
+                    openTourModal('edit', defaults);
+                }
+            });
+        });
+
+        const actionForm = document.getElementById('actionForm');
+        const actionFormAction = document.getElementById('actionFormAction');
+        const actionFormId = document.getElementById('actionFormId');
+        const actionFormCurrentStatus = document.getElementById('actionFormCurrentStatus');
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmTitle = document.getElementById('confirmTitle');
+        const confirmMessage = document.getElementById('confirmMessage');
+        const confirmAccept = document.getElementById('confirmAccept');
+        const confirmCancel = document.getElementById('confirmCancel');
+        const confirmBackdrop = document.getElementById('confirmBackdrop');
+
+        function openConfirm(title, message, onConfirm, variant) {
+            confirmTitle.textContent = title;
+            confirmMessage.textContent = message;
+            confirmAccept.className = 'px-4 py-2 rounded-lg text-white text-sm font-semibold';
+            if (variant === 'danger') {
+                confirmAccept.classList.add('bg-rose-600', 'hover:bg-rose-700');
+            } else if (variant === 'warning') {
+                confirmAccept.classList.add('bg-amber-600', 'hover:bg-amber-700');
+            } else {
+                confirmAccept.classList.add('bg-slate-900', 'hover:bg-slate-800');
+            }
+
+            confirmModal.classList.remove('hidden');
+
+            const handler = () => {
+                closeConfirm();
+                onConfirm();
+            };
+
+            confirmAccept.onclick = handler;
+        }
+
+        function closeConfirm() {
+            confirmModal.classList.add('hidden');
+            confirmAccept.onclick = null;
+        }
+
+        confirmCancel?.addEventListener('click', closeConfirm);
+        confirmBackdrop?.addEventListener('click', closeConfirm);
+
+        document.querySelectorAll('.btnToggle').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id || '0';
+                const currentStatus = btn.dataset.currentStatus || '';
+                const title = btn.dataset.title || 'tour nay';
+                const mode = btn.dataset.mode || 'hide';
+                const actionLabel = mode === 'hide' ? 'an' : 'hien';
+
+                openConfirm(
+                    'Xac nhan thay doi trang thai',
+                    `Ban co chac chan muon ${actionLabel} "${title}"?`,
+                    () => {
+                        actionFormAction.value = 'toggle';
+                        actionFormId.value = id;
+                        actionFormCurrentStatus.value = currentStatus;
+                        actionForm.submit();
+                    },
+                    'warning'
+                );
+            });
+        });
+
+        document.querySelectorAll('.btnDelete').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id || '0';
+                const title = btn.dataset.title || 'tour nay';
+
+                openConfirm(
+                    'Xoa tour',
+                    `Ban co chac chan muon xoa "${title}"? Du lieu lien quan se bi xoa.`,
+                    () => {
+                        actionFormAction.value = 'delete';
+                        actionFormId.value = id;
+                        actionFormCurrentStatus.value = '';
+                        actionForm.submit();
+                    },
+                    'danger'
+                );
+            });
+        });
+
+        const toast = document.getElementById('flashToast');
+        const closeToast = document.getElementById('closeToast');
+        if (toast) {
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+        closeToast?.addEventListener('click', () => {
+            toast?.classList.add('hidden');
+        });
+    </script>
 </body>
 </html>
