@@ -20,6 +20,13 @@ function adminEnsureUsersTable(): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
     $pdo->exec($sql);
+
+    // Backward-compatible migration for older admin_users schema.
+    $colStmt = $pdo->query("SHOW COLUMNS FROM admin_users LIKE 'is_active'");
+    $hasIsActive = (bool)$colStmt->fetch();
+    if (!$hasIsActive) {
+        $pdo->exec("ALTER TABLE admin_users ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER password_hash");
+    }
 }
 
 function adminHasAnyUser(): bool
@@ -69,7 +76,12 @@ function adminLogin(string $username, string $password): bool
     $stmt->execute(['username' => $username]);
     $user = $stmt->fetch();
 
-    if ($user && (int)$user['is_active'] === 1 && password_verify($password, (string)$user['password_hash'])) {
+    $isActive = true;
+    if (is_array($user) && array_key_exists('is_active', $user)) {
+        $isActive = (int)$user['is_active'] === 1;
+    }
+
+    if ($user && $isActive && password_verify($password, (string)$user['password_hash'])) {
         if (password_needs_rehash((string)$user['password_hash'], PASSWORD_DEFAULT)) {
             $newHash = password_hash($password, PASSWORD_DEFAULT);
             $update = $pdo->prepare('UPDATE admin_users SET password_hash = :password_hash WHERE id = :id');
