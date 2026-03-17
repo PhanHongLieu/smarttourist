@@ -42,6 +42,38 @@ function tableExists(PDO $pdo, string $tableName): bool
     return (bool)$stmt->fetchColumn();
 }
 
+function ensureHomepageFeaturedTable(PDO $pdo): void
+{
+    $sql = "
+        CREATE TABLE IF NOT EXISTS homepage_featured_tours (
+            slot_num TINYINT UNSIGNED NOT NULL,
+            tour_id INT UNSIGNED NOT NULL,
+            updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (slot_num),
+            INDEX idx_homepage_featured_tour (tour_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+    $pdo->exec($sql);
+}
+
+function getHomepageFeaturedMap(PDO $pdo): array
+{
+    $result = [1 => 0, 2 => 0, 3 => 0];
+    if (!tableExists($pdo, 'homepage_featured_tours')) {
+        return $result;
+    }
+
+    $stmt = $pdo->query('SELECT slot_num, tour_id FROM homepage_featured_tours WHERE slot_num BETWEEN 1 AND 3 ORDER BY slot_num ASC');
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $slot = (int)($row['slot_num'] ?? 0);
+        $tourId = (int)($row['tour_id'] ?? 0);
+        if ($slot >= 1 && $slot <= 3) {
+            $result[$slot] = $tourId;
+        }
+    }
+    return $result;
+}
+
 function getTourStatusOptions(PDO $pdo): array
 {
     try {
@@ -320,6 +352,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirectWithMessage($message);
         }
 
+        if ($action === 'save_home_featured') {
+            ensureHomepageFeaturedTable($pdo);
+
+            $slot1 = (int)($_POST['featured_slot_1'] ?? 0);
+            $slot2 = (int)($_POST['featured_slot_2'] ?? 0);
+            $slot3 = (int)($_POST['featured_slot_3'] ?? 0);
+            $selected = [$slot1, $slot2, $slot3];
+
+            foreach ($selected as $tourId) {
+                if ($tourId <= 0) {
+                    redirectWithMessage('Vui lòng chọn đủ 3 tour nổi bật cho trang chủ.', 'error');
+                }
+            }
+
+            if (count(array_unique($selected)) !== 3) {
+                redirectWithMessage('Ba ô nổi bật phải là 3 tour khác nhau.', 'error');
+            }
+
+            $placeholders = implode(',', array_fill(0, count($selected), '?'));
+            $verify = $pdo->prepare("SELECT COUNT(*) FROM tours WHERE id IN ({$placeholders}) AND status = ?");
+            $verify->execute(array_merge($selected, [$publishedStatus]));
+            if ((int)$verify->fetchColumn() !== 3) {
+                redirectWithMessage('Chỉ được chọn các tour đang hiển thị (PUBLISHED).', 'error');
+            }
+
+            $pdo->beginTransaction();
+            $upsert = $pdo->prepare(
+                'INSERT INTO homepage_featured_tours (slot_num, tour_id) VALUES (:slot_num, :tour_id)
+                 ON DUPLICATE KEY UPDATE tour_id = VALUES(tour_id)'
+            );
+
+            $upsert->execute(['slot_num' => 1, 'tour_id' => $slot1]);
+            $upsert->execute(['slot_num' => 2, 'tour_id' => $slot2]);
+            $upsert->execute(['slot_num' => 3, 'tour_id' => $slot3]);
+            $pdo->commit();
+
+            redirectWithMessage('Đã cập nhật 3 tour nổi bật ngoài trang chủ.');
+        }
+
         redirectWithMessage('Hành động không hợp lệ.', 'error');
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
@@ -336,6 +407,27 @@ try {
 } catch (Throwable $e) {
     $tours = [];
 }
+
+$homepageFeatured = [1 => 0, 2 => 0, 3 => 0];
+try {
+    ensureHomepageFeaturedTable($pdo);
+    $homepageFeatured = getHomepageFeaturedMap($pdo);
+} catch (Throwable $e) {
+    $homepageFeatured = [1 => 0, 2 => 0, 3 => 0];
+}
+
+$publishedTours = array_values(array_filter($tours, static function ($tour) use ($publishedStatus) {
+    return (string)($tour['status'] ?? '') === $publishedStatus;
+}));
+
+$publishedTourBrief = array_map(static function ($tour): array {
+    return [
+        'id' => (int)($tour['id'] ?? 0),
+        'title' => (string)($tour['title'] ?? ''),
+        'destination' => (string)($tour['destination'] ?? ''),
+        'departure_location' => (string)($tour['departure_location'] ?? ''),
+    ];
+}, $publishedTours);
 
 $formDefaults = [
     'id' => 0,
@@ -416,15 +508,15 @@ $messageType = $_GET['type'] ?? 'success';
             <main class="admin-shell space-y-6">
 
         <section class="grid gap-4 md:grid-cols-3">
-            <article class="panel rounded-2xl p-5 shadow-sm">
+            <article class="admin-panel rounded-2xl p-5 shadow-sm">
                 <p class="text-sm text-slate-500">Tổng số tour</p>
                 <p class="text-3xl font-bold mt-1 text-slate-900"><?= (int)$totalTour ?></p>
             </article>
-            <article class="panel rounded-2xl p-5 shadow-sm">
+            <article class="admin-panel rounded-2xl p-5 shadow-sm">
                 <p class="text-sm text-slate-500">Tour đang hiển thị</p>
                 <p class="text-3xl font-bold mt-1 text-emerald-700"><?= (int)$visibleTour ?></p>
             </article>
-            <article class="panel rounded-2xl p-5 shadow-sm">
+            <article class="admin-panel rounded-2xl p-5 shadow-sm">
                 <p class="text-sm text-slate-500">Tour đang ẩn</p>
                 <p class="text-3xl font-bold mt-1 text-amber-700"><?= (int)$hiddenTour ?></p>
             </article>
@@ -439,7 +531,55 @@ $messageType = $_GET['type'] ?? 'success';
             </div>
         <?php endif; ?>
 
-        <section class="panel rounded-2xl shadow-lg overflow-hidden">
+        <section class="admin-panel rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-4 border-b border-slate-200">
+                <h2 class="text-lg font-semibold text-slate-900">Tour nổi bật trang chủ (3 ô)</h2>
+                <p class="text-xs text-slate-500 mt-1">Kéo thả tour vào 3 ô để thay đổi thứ tự hiển thị tại khu vực "Điểm đến hàng đầu cho bạn" ngoài trang chủ.</p>
+            </div>
+            <form method="post" id="featuredToursForm" class="p-4 grid lg:grid-cols-5 gap-4">
+                <input type="hidden" name="action" value="save_home_featured">
+                <input type="hidden" name="featured_slot_1" id="featuredSlotInput1" value="<?= (int)$homepageFeatured[1] ?>" required>
+                <input type="hidden" name="featured_slot_2" id="featuredSlotInput2" value="<?= (int)$homepageFeatured[2] ?>" required>
+                <input type="hidden" name="featured_slot_3" id="featuredSlotInput3" value="<?= (int)$homepageFeatured[3] ?>" required>
+
+                <div class="lg:col-span-3">
+                    <p class="text-sm font-semibold text-slate-800">3 ô hiển thị ngoài trang chủ</p>
+                    <p class="text-xs text-slate-500 mt-1">Kéo tour từ danh sách bên phải vào từng ô hoặc kéo giữa các ô để đổi thứ tự.</p>
+                    <div id="featuredSlotsBoard" class="mt-3 grid md:grid-cols-3 gap-3">
+                        <?php for ($slot = 1; $slot <= 3; $slot++): ?>
+                            <div class="featured-slot border-2 border-dashed border-slate-300 rounded-xl p-3 min-h-[140px] bg-slate-50/70" data-slot="<?= $slot ?>">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ô nổi bật #<?= $slot ?></p>
+                                <div class="featured-slot-content mt-2"></div>
+                            </div>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <p class="text-sm font-semibold text-slate-800">Tour đang hiển thị (kéo để gán)</p>
+                    <p class="text-xs text-slate-500 mt-1">Chỉ các tour trạng thái PUBLISHED mới xuất hiện ở đây.</p>
+                    <div id="featuredTourPool" class="mt-3 space-y-2 max-h-[320px] overflow-auto pr-1">
+                        <?php foreach ($publishedTours as $tourOption): ?>
+                            <div
+                                class="featured-tour-item cursor-grab active:cursor-grabbing border border-slate-200 bg-white rounded-lg p-3"
+                                draggable="true"
+                                data-tour-id="<?= (int)$tourOption['id'] ?>"
+                            >
+                                <p class="text-sm font-semibold text-slate-900 line-clamp-2">#<?= (int)$tourOption['id'] ?> - <?= e($tourOption['title']) ?></p>
+                                <p class="text-xs text-slate-500 mt-1">Điểm đến: <?= e($tourOption['destination'] ?: 'Chưa cập nhật') ?></p>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                    <p class="text-xs text-slate-500">Mẹo: một tour chỉ nên nằm ở 1 ô. Kéo lại để thay thế nhanh.</p>
+                    <button type="submit" class="admin-btn admin-btn-primary">Lưu 3 tour nổi bật</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="admin-panel rounded-2xl shadow-lg overflow-hidden">
             <div class="p-4 border-b border-slate-200 flex items-center justify-between gap-2">
                 <h2 class="text-lg font-semibold text-slate-900">Danh sách tour</h2>
                 <p class="text-xs text-slate-500">Nhập sửa nhanh bằng modal, không cần chuyển trang.</p>
@@ -508,10 +648,10 @@ $messageType = $_GET['type'] ?? 'success';
         <input type="hidden" name="current_status" id="actionFormCurrentStatus" value="">
     </form>
 
-    <div id="tourModal" class="fixed inset-0 z-50 hidden">
-        <div class="absolute inset-0 bg-slate-900/60" id="tourModalBackdrop"></div>
-        <div class="relative max-w-5xl mx-auto my-6 px-4">
-            <div class="panel rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+    <div id="tourModal" class="fixed inset-0 z-[90] hidden">
+        <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px]" id="tourModalBackdrop"></div>
+        <div class="relative h-full w-full overflow-y-auto p-3 md:p-6 flex items-start md:items-center justify-center">
+            <div class="admin-panel admin-modal-surface w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden max-h-[94vh] flex flex-col">
                 <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                     <h3 id="tourModalTitle" class="text-xl font-semibold text-slate-900">Thêm tour mới</h3>
                     <button type="button" id="tourModalClose" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Đóng</button>
@@ -523,22 +663,22 @@ $messageType = $_GET['type'] ?? 'success';
                     <div class="grid md:grid-cols-2 gap-4">
                         <label class="block">
                             <span class="text-sm text-slate-700">Mã tour</span>
-                            <input name="code" id="f_code" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="VD: ST-001">
+                            <input name="code" id="f_code" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="VD: ST-001">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Tên tour *</span>
-                            <input name="title" id="f_title" required class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Tên tour">
+                            <input name="title" id="f_title" required class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="Tên tour">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Slug (để trống để tự tạo)</span>
-                            <input name="slug" id="f_slug" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="vd: tour-da-lat-3n2d">
+                            <input name="slug" id="f_slug" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="vd: tour-da-lat-3n2d">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Trạng thái</span>
-                            <select name="status" id="f_status" class="mt-1 w-full border rounded-lg px-3 py-2">
+                            <select name="status" id="f_status" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900">
                                 <?php foreach ($statusOptions as $status): ?>
                                     <option value="<?= e($status) ?>"><?= e($status) ?></option>
                                 <?php endforeach; ?>
@@ -547,76 +687,76 @@ $messageType = $_GET['type'] ?? 'success';
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Nơi khởi hành</span>
-                            <input name="departure_location" id="f_departure_location" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="TP.HCM">
+                            <input name="departure_location" id="f_departure_location" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="TP.HCM">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Điểm đến</span>
-                            <input name="destination" id="f_destination" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Da Lat">
+                            <input name="destination" id="f_destination" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="Da Lat">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Phương tiện</span>
-                            <input name="vehicle" id="f_vehicle" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Xe giuong nam">
+                            <input name="vehicle" id="f_vehicle" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="Xe giuong nam">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">URL ảnh đại diện</span>
-                            <input name="main_image" id="f_main_image" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="assets/image/...">
+                            <input name="main_image" id="f_main_image" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="assets/image/...">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Số ngày</span>
-                            <input type="number" min="1" name="duration_days" id="f_duration_days" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['duration_days'] ?>">
+                            <input type="number" min="1" name="duration_days" id="f_duration_days" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" value="<?= (int)$formDefaults['duration_days'] ?>">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Số đêm</span>
-                            <input type="number" min="0" name="duration_nights" id="f_duration_nights" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['duration_nights'] ?>">
+                            <input type="number" min="0" name="duration_nights" id="f_duration_nights" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" value="<?= (int)$formDefaults['duration_nights'] ?>">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Giá người lớn</span>
-                            <input type="number" min="0" step="0.01" name="price_adult" id="f_price_adult" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_adult'] ?>">
+                            <input type="number" min="0" step="0.01" name="price_adult" id="f_price_adult" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" value="<?= (float)$formDefaults['price_adult'] ?>">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Giá trẻ em</span>
-                            <input type="number" min="0" step="0.01" name="price_child" id="f_price_child" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_child'] ?>">
+                            <input type="number" min="0" step="0.01" name="price_child" id="f_price_child" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" value="<?= (float)$formDefaults['price_child'] ?>">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Giá em bé</span>
-                            <input type="number" min="0" step="0.01" name="price_baby" id="f_price_baby" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_baby'] ?>">
+                            <input type="number" min="0" step="0.01" name="price_baby" id="f_price_baby" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" value="<?= (float)$formDefaults['price_baby'] ?>">
                         </label>
 
                         <label class="block">
                             <span class="text-sm text-slate-700">Số khách tối đa</span>
-                            <input type="number" min="1" name="max_passengers" id="f_max_passengers" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['max_passengers'] ?>">
+                            <input type="number" min="1" name="max_passengers" id="f_max_passengers" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" value="<?= (int)$formDefaults['max_passengers'] ?>">
                         </label>
 
                         <label class="block md:col-span-2">
                             <span class="text-sm text-slate-700">Tổng quan</span>
-                            <textarea name="overview" id="f_overview" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Mô tả ngắn"></textarea>
+                            <textarea name="overview" id="f_overview" rows="3" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="Mô tả ngắn"></textarea>
                         </label>
 
                         <label class="block md:col-span-2">
                             <span class="text-sm text-slate-700">Mô tả chi tiết</span>
-                            <textarea name="description" id="f_description" rows="4" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Nội dung mô tả"></textarea>
+                            <textarea name="description" id="f_description" rows="4" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="Nội dung mô tả"></textarea>
                         </label>
 
                         <label class="block md:col-span-2">
                             <span class="text-sm text-slate-700">Điểm nổi bật</span>
-                            <textarea name="highlight" id="f_highlight" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Điểm nổi bật cua tour"></textarea>
+                            <textarea name="highlight" id="f_highlight" rows="3" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="Điểm nổi bật của tour"></textarea>
                         </label>
 
                         <label class="block md:col-span-2">
                             <span class="text-sm text-slate-700">Chính sách</span>
-                            <textarea name="policy" id="f_policy" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Chính sách hoan huy, tre em..."></textarea>
+                            <textarea name="policy" id="f_policy" rows="3" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="Chính sách hoàn hủy, trẻ em..."></textarea>
                         </label>
                     </div>
 
-                    <div class="sticky bottom-0 bg-white border-t border-slate-200 pt-4 mt-6 flex items-center justify-end gap-3">
+                    <div class="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-200 pt-4 mt-6 flex items-center justify-end gap-3">
                         <button type="button" id="tourFormCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Hủy</button>
                         <button type="submit" id="tourFormSubmit" class="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Lưu tour</button>
                     </div>
@@ -625,12 +765,12 @@ $messageType = $_GET['type'] ?? 'success';
         </div>
     </div>
 
-    <div id="confirmModal" class="fixed inset-0 z-50 hidden">
+    <div id="confirmModal" class="fixed inset-0 z-[95] hidden">
         <div class="absolute inset-0 bg-slate-900/60" id="confirmBackdrop"></div>
         <div class="relative max-w-md mx-auto mt-40 px-4">
-            <div class="panel rounded-2xl shadow-2xl p-5">
+            <div class="admin-panel admin-modal-surface rounded-2xl shadow-2xl p-5">
                 <h3 id="confirmTitle" class="text-lg font-semibold text-slate-900">Xác nhận thao tác</h3>
-                <p id="confirmMessage" class="text-sm text-slate-600 mt-2">Bạn có chắc chắn muốn tiep tuc?</p>
+                <p id="confirmMessage" class="text-sm text-slate-600 mt-2">Bạn có chắc chắn muốn tiếp tục?</p>
                 <div class="mt-5 flex items-center justify-end gap-2">
                     <button type="button" id="confirmCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Hủy</button>
                     <button type="button" id="confirmAccept" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Xác nhận</button>
@@ -662,6 +802,181 @@ $messageType = $_GET['type'] ?? 'success';
                 });
             }
         })();
+
+        const featuredTourCatalog = <?= json_encode($publishedTourBrief, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const featuredTourMap = Object.fromEntries(featuredTourCatalog.map((tour) => [String(tour.id), tour]));
+        const featuredSlotInputs = {
+            1: document.getElementById('featuredSlotInput1'),
+            2: document.getElementById('featuredSlotInput2'),
+            3: document.getElementById('featuredSlotInput3')
+        };
+        const featuredState = {
+            1: parseInt(featuredSlotInputs[1]?.value || '0', 10) || 0,
+            2: parseInt(featuredSlotInputs[2]?.value || '0', 10) || 0,
+            3: parseInt(featuredSlotInputs[3]?.value || '0', 10) || 0
+        };
+
+        function escapeHtml(text) {
+            return String(text ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function findSlotByTourId(tourId) {
+            const target = Number(tourId) || 0;
+            if (target <= 0) return 0;
+            for (const slot of [1, 2, 3]) {
+                if ((featuredState[slot] || 0) === target) {
+                    return slot;
+                }
+            }
+            return 0;
+        }
+
+        function renderSlot(slot) {
+            const slotEl = document.querySelector(`.featured-slot[data-slot="${slot}"]`);
+            if (!slotEl) return;
+
+            const contentEl = slotEl.querySelector('.featured-slot-content');
+            const tourId = featuredState[slot] || 0;
+            const tour = tourId > 0 ? featuredTourMap[String(tourId)] : null;
+
+            featuredSlotInputs[slot].value = String(tourId || '');
+
+            if (!tour) {
+                slotEl.classList.remove('border-emerald-300', 'bg-emerald-50/70');
+                slotEl.classList.add('border-slate-300', 'bg-slate-50/70');
+                if (contentEl) {
+                    contentEl.innerHTML = '<p class="text-xs text-slate-400">Kéo tour vào đây</p>';
+                }
+                return;
+            }
+
+            slotEl.classList.remove('border-slate-300', 'bg-slate-50/70');
+            slotEl.classList.add('border-emerald-300', 'bg-emerald-50/70');
+            if (contentEl) {
+                contentEl.innerHTML = `
+                    <div class="featured-slot-card border border-emerald-200 rounded-lg bg-white p-2 cursor-grab active:cursor-grabbing" draggable="true" data-tour-id="${tour.id}" data-source-slot="${slot}">
+                        <p class="text-sm font-semibold text-slate-900 line-clamp-2">#${tour.id} - ${escapeHtml(tour.title)}</p>
+                        <p class="text-xs text-slate-500 mt-1">Điểm đến: ${escapeHtml(tour.destination || 'Chưa cập nhật')}</p>
+                        <button type="button" class="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-700" data-remove-slot="${slot}">Bỏ khỏi ô này</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderPool() {
+            document.querySelectorAll('.featured-tour-item').forEach((item) => {
+                const tourId = Number(item.dataset.tourId || 0);
+                const usedSlot = findSlotByTourId(tourId);
+                item.classList.remove('ring-2', 'ring-emerald-300', 'bg-emerald-50');
+                if (usedSlot > 0) {
+                    item.classList.add('ring-2', 'ring-emerald-300', 'bg-emerald-50');
+                }
+            });
+        }
+
+        function renderFeaturedBoard() {
+            renderSlot(1);
+            renderSlot(2);
+            renderSlot(3);
+            renderPool();
+        }
+
+        function applyDropToSlot(targetSlot, droppedTourId, sourceSlot) {
+            const slot = Number(targetSlot) || 0;
+            const tourId = Number(droppedTourId) || 0;
+            const fromSlot = Number(sourceSlot) || 0;
+
+            if (slot < 1 || slot > 3 || tourId <= 0) {
+                return;
+            }
+
+            if (fromSlot >= 1 && fromSlot <= 3) {
+                if (fromSlot === slot) {
+                    return;
+                }
+                const swap = featuredState[slot] || 0;
+                featuredState[slot] = tourId;
+                featuredState[fromSlot] = swap;
+                renderFeaturedBoard();
+                return;
+            }
+
+            const existingSlot = findSlotByTourId(tourId);
+            if (existingSlot > 0 && existingSlot !== slot) {
+                featuredState[existingSlot] = featuredState[slot] || 0;
+            }
+            featuredState[slot] = tourId;
+            renderFeaturedBoard();
+        }
+
+        document.querySelectorAll('.featured-tour-item').forEach((item) => {
+            item.addEventListener('dragstart', (event) => {
+                const tourId = item.dataset.tourId || '';
+                event.dataTransfer?.setData('text/plain', tourId);
+                event.dataTransfer?.setData('source-slot', '');
+                event.dataTransfer?.setData('source-kind', 'pool');
+            });
+        });
+
+        document.addEventListener('dragstart', (event) => {
+            const card = event.target.closest('.featured-slot-card');
+            if (!card) return;
+            const tourId = card.dataset.tourId || '';
+            const sourceSlot = card.dataset.sourceSlot || '';
+            event.dataTransfer?.setData('text/plain', tourId);
+            event.dataTransfer?.setData('source-slot', sourceSlot);
+            event.dataTransfer?.setData('source-kind', 'slot');
+        });
+
+        document.querySelectorAll('.featured-slot').forEach((slotEl) => {
+            slotEl.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                slotEl.classList.add('ring-2', 'ring-sky-300');
+            });
+
+            slotEl.addEventListener('dragleave', () => {
+                slotEl.classList.remove('ring-2', 'ring-sky-300');
+            });
+
+            slotEl.addEventListener('drop', (event) => {
+                event.preventDefault();
+                slotEl.classList.remove('ring-2', 'ring-sky-300');
+                const targetSlot = slotEl.dataset.slot || '';
+                const droppedTourId = event.dataTransfer?.getData('text/plain') || '';
+                const sourceSlot = event.dataTransfer?.getData('source-slot') || '';
+                applyDropToSlot(targetSlot, droppedTourId, sourceSlot);
+            });
+        });
+
+        document.addEventListener('click', (event) => {
+            const removeBtn = event.target.closest('[data-remove-slot]');
+            if (!removeBtn) return;
+            const slot = Number(removeBtn.dataset.removeSlot || 0);
+            if (slot >= 1 && slot <= 3) {
+                featuredState[slot] = 0;
+                renderFeaturedBoard();
+            }
+        });
+
+        document.getElementById('featuredToursForm')?.addEventListener('submit', (event) => {
+            const ids = [featuredState[1], featuredState[2], featuredState[3]].map((value) => Number(value) || 0);
+            if (ids.some((id) => id <= 0)) {
+                event.preventDefault();
+                alert('Vui lòng kéo đủ 3 tour vào 3 ô nổi bật trước khi lưu.');
+                return;
+            }
+            if (new Set(ids).size !== 3) {
+                event.preventDefault();
+                alert('Ba ô nổi bật phải là 3 tour khác nhau.');
+            }
+        });
+
+        renderFeaturedBoard();
 
         const defaults = <?= json_encode($formDefaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 

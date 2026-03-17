@@ -2,19 +2,75 @@
 require_once __DIR__ . '/../config/database.php';
 
 /**
- * Lấy 3 tour gần nhất (ACTIVE)
+ * Lấy 3 tour nổi bật ngoài trang chủ.
+ * Ưu tiên theo cấu hình admin (3 ô), thiếu sẽ tự bù bằng tour mới nhất đang hiển thị.
  */
 $featuredTours = [];
 try {
-  $stmt = $pdo->prepare(
-    "SELECT id, title, slug, main_image AS thumbnail, price_adult, departure_location
-     FROM tours
-     WHERE status = 'PUBLISHED'
-     ORDER BY created_at DESC
-     LIMIT 3"
-  );
-  $stmt->execute();
-  $featuredTours = $stmt->fetchAll();
+  $configuredIdsBySlot = [];
+
+  $tableCheck = $pdo->prepare('SHOW TABLES LIKE :table_name');
+  $tableCheck->execute(['table_name' => 'homepage_featured_tours']);
+  $hasFeaturedTable = (bool)$tableCheck->fetchColumn();
+
+  if ($hasFeaturedTable) {
+    $slotStmt = $pdo->query('SELECT slot_num, tour_id FROM homepage_featured_tours WHERE slot_num BETWEEN 1 AND 3 ORDER BY slot_num ASC');
+    foreach ($slotStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+      $slot = (int)($row['slot_num'] ?? 0);
+      $tourId = (int)($row['tour_id'] ?? 0);
+      if ($slot >= 1 && $slot <= 3 && $tourId > 0) {
+        $configuredIdsBySlot[$slot] = $tourId;
+      }
+    }
+  }
+
+  $selectedTours = [];
+  $selectedIds = [];
+
+  if (!empty($configuredIdsBySlot)) {
+    $configuredIds = array_values($configuredIdsBySlot);
+    $placeholders = implode(',', array_fill(0, count($configuredIds), '?'));
+    $configuredStmt = $pdo->prepare(
+      "SELECT id, title, slug, main_image AS thumbnail, price_adult, departure_location
+       FROM tours
+       WHERE id IN ($placeholders) AND status = 'PUBLISHED'"
+    );
+    $configuredStmt->execute($configuredIds);
+
+    $configuredMap = [];
+    foreach ($configuredStmt->fetchAll(PDO::FETCH_ASSOC) as $tour) {
+      $configuredMap[(int)$tour['id']] = $tour;
+    }
+
+    ksort($configuredIdsBySlot);
+    foreach ($configuredIdsBySlot as $slot => $tourId) {
+      if (isset($configuredMap[$tourId])) {
+        $selectedTours[] = $configuredMap[$tourId];
+        $selectedIds[] = (int)$tourId;
+      }
+    }
+  }
+
+  $remain = max(0, 3 - count($selectedTours));
+  if ($remain > 0) {
+    $fallbackSql = "SELECT id, title, slug, main_image AS thumbnail, price_adult, departure_location
+                    FROM tours
+                    WHERE status = 'PUBLISHED'";
+
+    $fallbackParams = [];
+    if (!empty($selectedIds)) {
+      $exclude = implode(',', array_fill(0, count($selectedIds), '?'));
+      $fallbackSql .= " AND id NOT IN ($exclude)";
+      $fallbackParams = $selectedIds;
+    }
+
+    $fallbackSql .= ' ORDER BY created_at DESC LIMIT ' . (int)$remain;
+    $fallbackStmt = $pdo->prepare($fallbackSql);
+    $fallbackStmt->execute($fallbackParams);
+    $selectedTours = array_merge($selectedTours, $fallbackStmt->fetchAll(PDO::FETCH_ASSOC));
+  }
+
+  $featuredTours = array_slice($selectedTours, 0, 3);
 } catch (Exception $e) {
   $featuredTours = [];
 }

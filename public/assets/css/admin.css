@@ -93,6 +93,12 @@ body.admin-dark {
   backdrop-filter: blur(4px);
 }
 
+.admin-modal-surface {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
 body.admin-dark .admin-panel,
 body.admin-dark .admin-sidebar,
 body.admin-dark .admin-topbar,
@@ -100,6 +106,12 @@ body.admin-dark .admin-stat {
   background: rgba(15, 23, 42, 0.82);
   border-color: rgba(148, 163, 184, 0.2);
   color: #dbe4f4;
+}
+
+body.admin-dark .admin-modal-surface {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.16);
+  color: #0f172a;
 }
 
 body.admin-dark .admin-title,
