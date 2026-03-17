@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/auth.php';
 adminRequireLogin();
 
@@ -63,17 +63,17 @@ function saveSetting(PDO $pdo, string $key, string $value): void
 }
 
 $settingsDef = [
-    'app_base_url' => ['label' => 'APP Base URL', 'group' => 'system', 'placeholder' => 'https://smarttourist-web.onrender.com'],
-    'company_name' => ['label' => 'Ten cong ty', 'group' => 'system', 'placeholder' => 'SmartTourist'],
-    'support_email' => ['label' => 'Email ho tro', 'group' => 'system', 'placeholder' => 'support@smarttourist.vn'],
-    'support_phone' => ['label' => 'So hotline', 'group' => 'system', 'placeholder' => '0909000000'],
-    'office_address' => ['label' => 'Dia chi van phong', 'group' => 'system', 'placeholder' => '123 Nguyen Hue, Quan 1, TP.HCM'],
+    'app_base_url' => ['label' => 'Địa chỉ APP Base URL', 'group' => 'system', 'placeholder' => 'https://smarttourist-web.onrender.com'],
+    'company_name' => ['label' => 'Tên công ty', 'group' => 'system', 'placeholder' => 'SmartTourist'],
+    'support_email' => ['label' => 'Email hỗ trợ', 'group' => 'system', 'placeholder' => 'support@smarttourist.vn'],
+    'support_phone' => ['label' => 'Số hotline', 'group' => 'system', 'placeholder' => '0909000000'],
+    'office_address' => ['label' => 'Địa chỉ văn phòng', 'group' => 'system', 'placeholder' => '123 Nguyen Hue, Quan 1, TP.HCM'],
 
     'momo_endpoint' => ['label' => 'MoMo endpoint', 'group' => 'momo', 'placeholder' => 'https://test-payment.momo.vn/v2/gateway/api/create'],
-    'momo_partner_code' => ['label' => 'MoMo partner code', 'group' => 'momo', 'placeholder' => 'MOMOxxxxx'],
-    'momo_access_key' => ['label' => 'MoMo access key', 'group' => 'momo', 'placeholder' => 'access_key'],
-    'momo_secret_key' => ['label' => 'MoMo secret key', 'group' => 'momo', 'placeholder' => 'secret_key'],
-    'momo_request_type' => ['label' => 'MoMo request type', 'group' => 'momo', 'placeholder' => 'captureWallet'],
+    'momo_partner_code' => ['label' => 'Mã đối tác MoMo', 'group' => 'momo', 'placeholder' => 'MOMOxxxxx'],
+    'momo_access_key' => ['label' => 'Khóa truy cập MoMo', 'group' => 'momo', 'placeholder' => 'access_key'],
+    'momo_secret_key' => ['label' => 'Khóa bí mật MoMo', 'group' => 'momo', 'placeholder' => 'secret_key'],
+    'momo_request_type' => ['label' => 'Loại yêu cầu MoMo', 'group' => 'momo', 'placeholder' => 'captureWallet'],
     'momo_lang' => ['label' => 'MoMo lang', 'group' => 'momo', 'placeholder' => 'vi'],
 ];
 
@@ -97,11 +97,11 @@ try {
             saveSetting($pdo, $key, $incoming);
         }
 
-        $flashMessage = 'Da luu cau hinh thanh cong.';
+        $flashMessage = 'Đã lưu cấu hình thành công.';
         $flashType = 'success';
     }
 } catch (Throwable $e) {
-    $flashMessage = 'Khong the luu cau hinh: ' . $e->getMessage();
+    $flashMessage = 'Không thể lưu cấu hình: ' . $e->getMessage();
     $flashType = 'error';
 }
 
@@ -117,7 +117,7 @@ try {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Settings | SmartTourist Admin</title>
+    <title>Cài đặt | SmartTourist Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/admin.css">
@@ -126,15 +126,15 @@ try {
 <div class="admin-layout">
     <aside class="admin-sidebar">
         <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
-        <h2 class="mt-1 font-extrabold text-slate-900">Admin Console</h2>
+        <h2 class="mt-1 font-extrabold text-slate-900">Bảng điều khiển</h2>
         <nav class="mt-6">
-            <a class="sidebar-link" href="tours.php">Tours</a>
-            <a class="sidebar-link" href="bookings.php">Bookings</a>
-            <a class="sidebar-link" href="payments.php">Payments</a>
-            <a class="sidebar-link active" href="settings.php">Settings</a>
+            <a class="sidebar-link" href="tours.php">Tour</a>
+            <a class="sidebar-link" href="bookings.php">Đặt tour</a>
+            <a class="sidebar-link" href="payments.php">Thanh toán</a>
+            <a class="sidebar-link active" href="settings.php">Cài đặt</a>
         </nav>
         <div class="mt-6 pt-4 border-t border-slate-200">
-            <a href="logout.php" class="admin-btn admin-btn-danger w-full">Dang xuat</a>
+            <a href="logout.php" class="admin-btn admin-btn-danger w-full">Đăng xuất</a>
         </div>
     </aside>
 
@@ -142,10 +142,10 @@ try {
         <header class="admin-topbar">
             <div class="admin-shell py-3 flex items-center justify-between gap-2">
                 <div>
-                    <h1 class="admin-title text-2xl">Settings</h1>
-                    <p class="admin-subtitle">Quan ly cau hinh he thong va thanh toan.</p>
+                    <h1 class="admin-title text-2xl">Cài đặt</h1>
+                    <p class="admin-subtitle">Quản lý cấu hình hệ thống và thanh toán.</p>
                 </div>
-                <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Dark mode</button>
+                <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Chế độ tối</button>
             </div>
         </header>
 
@@ -160,8 +160,8 @@ try {
                 <section class="admin-panel p-6">
                     <div class="flex items-center justify-between gap-3 mb-4">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900">System settings</h2>
-                            <p class="text-sm text-slate-500">Thong tin he thong va lien he mac dinh.</p>
+                            <h2 class="text-lg font-bold text-slate-900">Cài đặt hệ thống</h2>
+                            <p class="text-sm text-slate-500">Thông tin hệ thống và liên hệ mặc định.</p>
                         </div>
                     </div>
 
@@ -184,8 +184,8 @@ try {
                 <section class="admin-panel p-6">
                     <div class="flex items-center justify-between gap-3 mb-4">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900">MoMo settings</h2>
-                            <p class="text-sm text-slate-500">Cau hinh thanh toan MoMo (duoc uu tien hon bien moi truong neu co gia tri).</p>
+                            <h2 class="text-lg font-bold text-slate-900">Cài đặt MoMo</h2>
+                            <p class="text-sm text-slate-500">Cấu hình thanh toán MoMo (được ưu tiên hơn biến môi trường nếu có giá trị).</p>
                         </div>
                     </div>
 
@@ -199,7 +199,7 @@ try {
                                         type="password"
                                         name="<?= e($key) ?>"
                                         value=""
-                                        placeholder="De trong de giu nguyen secret key hien tai"
+                                        placeholder="Để trống để giữ nguyên secret key hiện tại"
                                         class="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
                                     >
                                 <?php else: ?>
@@ -216,7 +216,7 @@ try {
                 </section>
 
                 <div class="flex items-center justify-end">
-                    <button type="submit" class="admin-btn admin-btn-primary">Luu settings</button>
+                    <button type="submit" class="admin-btn admin-btn-primary">Lưu cài đặt</button>
                 </div>
             </form>
         </main>
@@ -232,7 +232,7 @@ try {
     body.classList.add('admin-dark');
   }
   const sync = () => {
-    btn.textContent = body.classList.contains('admin-dark') ? 'Light mode' : 'Dark mode';
+    btn.textContent = body.classList.contains('admin-dark') ? 'Chế độ sáng' : 'Chế độ tối';
   };
   sync();
   btn.addEventListener('click', () => {
@@ -244,3 +244,4 @@ try {
 </script>
 </body>
 </html>
+

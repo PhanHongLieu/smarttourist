@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/auth.php';
 adminRequireLogin();
 
@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'add') {
             $payload = tourPayloadFromPost($_POST);
             if ($payload['title'] === '') {
-                redirectWithMessage('Vui long nhap ten tour.', 'error');
+                redirectWithMessage('Vui lòng nhập tên tour.', 'error');
             }
 
             $status = (string)($_POST['status'] ?? $publishedStatus);
@@ -202,18 +202,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'status' => $status,
             ]);
 
-            redirectWithMessage('Them tour thanh cong.');
+            redirectWithMessage('Thêm tour thành công.');
         }
 
         if ($action === 'update') {
             $tourId = (int)($_POST['id'] ?? 0);
             if ($tourId <= 0) {
-                redirectWithMessage('Khong tim thay tour can sua.', 'error');
+                redirectWithMessage('Không tìm thấy tour cần sửa.', 'error');
             }
 
             $payload = tourPayloadFromPost($_POST);
             if ($payload['title'] === '') {
-                redirectWithMessage('Vui long nhap ten tour.', 'error');
+                redirectWithMessage('Vui lòng nhập tên tour.', 'error');
             }
 
             $status = (string)($_POST['status'] ?? $publishedStatus);
@@ -268,13 +268,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'status' => $status,
             ]);
 
-            redirectWithMessage('Cap nhat tour thanh cong.');
+            redirectWithMessage('Cập nhật tour thành công.');
         }
 
         if ($action === 'delete') {
             $tourId = (int)($_POST['id'] ?? 0);
             if ($tourId <= 0) {
-                redirectWithMessage('Khong tim thay tour can xoa.', 'error');
+                redirectWithMessage('Không tìm thấy tour cần xóa.', 'error');
             }
 
             $relatedTables = [
@@ -299,14 +299,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute(['id' => $tourId]);
             $pdo->commit();
 
-            redirectWithMessage('Da xoa tour.');
+            redirectWithMessage('Đã xóa tour.');
         }
 
         if ($action === 'toggle') {
             $tourId = (int)($_POST['id'] ?? 0);
             $currentStatus = (string)($_POST['current_status'] ?? '');
             if ($tourId <= 0) {
-                redirectWithMessage('Khong tim thay tour can cap nhat trang thai.', 'error');
+                redirectWithMessage('Không tìm thấy tour cần cập nhật trạng thái.', 'error');
             }
 
             $newStatus = ($currentStatus === $publishedStatus) ? $hiddenStatus : $publishedStatus;
@@ -316,16 +316,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'id' => $tourId,
             ]);
 
-            $message = $newStatus === $publishedStatus ? 'Da hien tour.' : 'Da an tour.';
+            $message = $newStatus === $publishedStatus ? 'Đã hiển thị tour.' : 'Đã ẩn tour.';
             redirectWithMessage($message);
         }
 
-        redirectWithMessage('Hanh dong khong hop le.', 'error');
+        redirectWithMessage('Hành động không hợp lệ.', 'error');
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        redirectWithMessage('Khong the xu ly yeu cau: ' . $e->getMessage(), 'error');
+        redirectWithMessage('Không thể xử lý yêu cầu: ' . $e->getMessage(), 'error');
     }
 }
 
@@ -359,14 +359,14 @@ $formDefaults = [
     'status' => $publishedStatus,
 ];
 
-$totalTours = count($tours);
-$visibleTours = 0;
+$totalTour = count($tours);
+$visibleTour = 0;
 foreach ($tours as $tour) {
     if (($tour['status'] ?? '') === $publishedStatus) {
-        $visibleTours++;
+        $visibleTour++;
     }
 }
-$hiddenTours = $totalTours - $visibleTours;
+$hiddenTour = $totalTour - $visibleTour;
 
 $message = $_GET['msg'] ?? '';
 $messageType = $_GET['type'] ?? 'success';
@@ -376,7 +376,7 @@ $messageType = $_GET['type'] ?? 'success';
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Quan tri tour | SmartTourist</title>
+    <title>Quản trị tour | SmartTourist</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/admin.css">
@@ -385,15 +385,15 @@ $messageType = $_GET['type'] ?? 'success';
     <div class="admin-layout">
         <aside class="admin-sidebar">
             <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
-            <h2 class="mt-1 font-extrabold text-slate-900">Admin Console</h2>
+            <h2 class="mt-1 font-extrabold text-slate-900">Bảng điều khiển</h2>
             <nav class="mt-6">
-                <a class="sidebar-link active" href="tours.php">Tours</a>
-                <a class="sidebar-link" href="bookings.php">Bookings</a>
-                <a class="sidebar-link" href="payments.php">Payments</a>
-                <a class="sidebar-link" href="settings.php">Settings</a>
+                <a class="sidebar-link active" href="tours.php">Tour</a>
+                <a class="sidebar-link" href="bookings.php">Đặt tour</a>
+                <a class="sidebar-link" href="payments.php">Thanh toán</a>
+                <a class="sidebar-link" href="settings.php">Cài đặt</a>
             </nav>
             <div class="mt-6 pt-4 border-t border-slate-200">
-                <a href="logout.php" class="admin-btn admin-btn-danger w-full">Dang xuat</a>
+                <a href="logout.php" class="admin-btn admin-btn-danger w-full">Đăng xuất</a>
             </div>
         </aside>
 
@@ -401,14 +401,14 @@ $messageType = $_GET['type'] ?? 'success';
             <header class="admin-topbar">
                 <div class="admin-shell py-3 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 class="admin-title text-2xl">Quan tri tour</h1>
-                        <p class="admin-subtitle">Them, sua, xoa va an/hien tour voi thao tac nhanh.</p>
+                        <h1 class="admin-title text-2xl">Quản trị tour</h1>
+                        <p class="admin-subtitle">Thêm, sửa, xóa và ẩn/hiện tour với thao tác nhanh.</p>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
-                        <button type="button" id="btnAddTour" class="admin-btn admin-btn-primary">+ Them tour</button>
-                        <a href="bookings.php" class="admin-btn admin-btn-outline">Dat tour</a>
-                        <a href="/index.php" class="admin-btn admin-btn-outline">Ve trang chu</a>
-                        <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Dark mode</button>
+                        <button type="button" id="btnAddTour" class="admin-btn admin-btn-primary">+ Thêm tour</button>
+                        <a href="bookings.php" class="admin-btn admin-btn-outline">Đặt tour</a>
+                        <a href="/index.php" class="admin-btn admin-btn-outline">Về trang chủ</a>
+                        <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Chế độ tối</button>
                     </div>
                 </div>
             </header>
@@ -417,16 +417,16 @@ $messageType = $_GET['type'] ?? 'success';
 
         <section class="grid gap-4 md:grid-cols-3">
             <article class="panel rounded-2xl p-5 shadow-sm">
-                <p class="text-sm text-slate-500">Tong so tour</p>
-                <p class="text-3xl font-bold mt-1 text-slate-900"><?= (int)$totalTours ?></p>
+                <p class="text-sm text-slate-500">Tổng số tour</p>
+                <p class="text-3xl font-bold mt-1 text-slate-900"><?= (int)$totalTour ?></p>
             </article>
             <article class="panel rounded-2xl p-5 shadow-sm">
-                <p class="text-sm text-slate-500">Tour dang hien</p>
-                <p class="text-3xl font-bold mt-1 text-emerald-700"><?= (int)$visibleTours ?></p>
+                <p class="text-sm text-slate-500">Tour đang hiển thị</p>
+                <p class="text-3xl font-bold mt-1 text-emerald-700"><?= (int)$visibleTour ?></p>
             </article>
             <article class="panel rounded-2xl p-5 shadow-sm">
-                <p class="text-sm text-slate-500">Tour dang an</p>
-                <p class="text-3xl font-bold mt-1 text-amber-700"><?= (int)$hiddenTours ?></p>
+                <p class="text-sm text-slate-500">Tour đang ẩn</p>
+                <p class="text-3xl font-bold mt-1 text-amber-700"><?= (int)$hiddenTour ?></p>
             </article>
         </section>
 
@@ -434,15 +434,15 @@ $messageType = $_GET['type'] ?? 'success';
             <div id="flashToast" class="fixed top-5 right-5 z-50 rounded-xl px-4 py-3 text-sm shadow-lg <?= $messageType === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' ?>">
                 <div class="flex items-start gap-3">
                     <p><?= e($message) ?></p>
-                    <button type="button" id="closeToast" class="text-xs font-semibold opacity-70 hover:opacity-100">Dong</button>
+                    <button type="button" id="closeToast" class="text-xs font-semibold opacity-70 hover:opacity-100">Đóng</button>
                 </div>
             </div>
         <?php endif; ?>
 
         <section class="panel rounded-2xl shadow-lg overflow-hidden">
             <div class="p-4 border-b border-slate-200 flex items-center justify-between gap-2">
-                <h2 class="text-lg font-semibold text-slate-900">Danh sach tour</h2>
-                <p class="text-xs text-slate-500">Nhap sua nhanh bang modal, khong can chuyen trang.</p>
+                <h2 class="text-lg font-semibold text-slate-900">Danh sách tour</h2>
+                <p class="text-xs text-slate-500">Nhập sửa nhanh bằng modal, không cần chuyển trang.</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
@@ -450,12 +450,12 @@ $messageType = $_GET['type'] ?? 'success';
                         <tr>
                             <th class="px-4 py-3 text-left">ID</th>
                             <th class="px-4 py-3 text-left">Code</th>
-                            <th class="px-4 py-3 text-left">Ten tour</th>
-                            <th class="px-4 py-3 text-left">Diem den</th>
-                            <th class="px-4 py-3 text-left">Thoi gian</th>
-                            <th class="px-4 py-3 text-left">Gia nguoi lon</th>
-                            <th class="px-4 py-3 text-left">Trang thai</th>
-                            <th class="px-4 py-3 text-right">Thao tac</th>
+                            <th class="px-4 py-3 text-left">Tên tour</th>
+                            <th class="px-4 py-3 text-left">Điểm đến</th>
+                            <th class="px-4 py-3 text-left">Thời gian</th>
+                            <th class="px-4 py-3 text-left">Giá người lớn</th>
+                            <th class="px-4 py-3 text-left">Trạng thái</th>
+                            <th class="px-4 py-3 text-right">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -480,18 +480,18 @@ $messageType = $_GET['type'] ?? 'success';
                                     <td class="px-4 py-3 text-right">
                                         <?php $tourJson = e(json_encode($tour, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); ?>
                                         <div class="flex flex-wrap justify-end gap-2">
-                                            <button type="button" class="btnEdit px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700" data-tour="<?= $tourJson ?>">Chinh sua</button>
+                                            <button type="button" class="btnEdit px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700" data-tour="<?= $tourJson ?>">Chỉnh sửa</button>
                                             <button type="button" class="btnToggle px-3 py-1.5 rounded-lg text-xs font-semibold <?= $isPublished ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' ?>" data-id="<?= (int)$tour['id'] ?>" data-current-status="<?= e($tour['status']) ?>" data-title="<?= e($tour['title']) ?>" data-mode="<?= $isPublished ? 'hide' : 'show' ?>">
-                                                <?= $isPublished ? 'An' : 'Hien' ?>
+                                                <?= $isPublished ? 'Ẩn' : 'Hiện' ?>
                                             </button>
-                                            <button type="button" class="btnDelete px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 text-xs font-semibold hover:bg-rose-200" data-id="<?= (int)$tour['id'] ?>" data-title="<?= e($tour['title']) ?>">Xoa</button>
+                                            <button type="button" class="btnDelete px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 text-xs font-semibold hover:bg-rose-200" data-id="<?= (int)$tour['id'] ?>" data-title="<?= e($tour['title']) ?>">Xóa</button>
                                         </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="8" class="px-4 py-6 text-center text-slate-500">Chua co tour nao.</td>
+                                <td colspan="8" class="px-4 py-6 text-center text-slate-500">Chưa có tour nào.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -513,8 +513,8 @@ $messageType = $_GET['type'] ?? 'success';
         <div class="relative max-w-5xl mx-auto my-6 px-4">
             <div class="panel rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
                 <div class="p-4 border-b border-slate-200 flex items-center justify-between">
-                    <h3 id="tourModalTitle" class="text-xl font-semibold text-slate-900">Them tour moi</h3>
-                    <button type="button" id="tourModalClose" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Dong</button>
+                    <h3 id="tourModalTitle" class="text-xl font-semibold text-slate-900">Thêm tour mới</h3>
+                    <button type="button" id="tourModalClose" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Đóng</button>
                 </div>
                 <form id="tourForm" method="post" class="p-4 overflow-y-auto">
                     <input type="hidden" name="action" id="tourFormAction" value="add">
@@ -522,22 +522,22 @@ $messageType = $_GET['type'] ?? 'success';
 
                     <div class="grid md:grid-cols-2 gap-4">
                         <label class="block">
-                            <span class="text-sm text-slate-700">Ma tour</span>
+                            <span class="text-sm text-slate-700">Mã tour</span>
                             <input name="code" id="f_code" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="VD: ST-001">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Ten tour *</span>
-                            <input name="title" id="f_title" required class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Ten tour">
+                            <span class="text-sm text-slate-700">Tên tour *</span>
+                            <input name="title" id="f_title" required class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Tên tour">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Slug (de trong de tu tao)</span>
+                            <span class="text-sm text-slate-700">Slug (để trống để tự tạo)</span>
                             <input name="slug" id="f_slug" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="vd: tour-da-lat-3n2d">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Trang thai</span>
+                            <span class="text-sm text-slate-700">Trạng thái</span>
                             <select name="status" id="f_status" class="mt-1 w-full border rounded-lg px-3 py-2">
                                 <?php foreach ($statusOptions as $status): ?>
                                     <option value="<?= e($status) ?>"><?= e($status) ?></option>
@@ -546,79 +546,79 @@ $messageType = $_GET['type'] ?? 'success';
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Noi khoi hanh</span>
+                            <span class="text-sm text-slate-700">Nơi khởi hành</span>
                             <input name="departure_location" id="f_departure_location" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="TP.HCM">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Diem den</span>
+                            <span class="text-sm text-slate-700">Điểm đến</span>
                             <input name="destination" id="f_destination" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Da Lat">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Phuong tien</span>
+                            <span class="text-sm text-slate-700">Phương tiện</span>
                             <input name="vehicle" id="f_vehicle" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Xe giuong nam">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">URL anh dai dien</span>
+                            <span class="text-sm text-slate-700">URL ảnh đại diện</span>
                             <input name="main_image" id="f_main_image" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="assets/image/...">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">So ngay</span>
+                            <span class="text-sm text-slate-700">Số ngày</span>
                             <input type="number" min="1" name="duration_days" id="f_duration_days" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['duration_days'] ?>">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">So dem</span>
+                            <span class="text-sm text-slate-700">Số đêm</span>
                             <input type="number" min="0" name="duration_nights" id="f_duration_nights" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['duration_nights'] ?>">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Gia nguoi lon</span>
+                            <span class="text-sm text-slate-700">Giá người lớn</span>
                             <input type="number" min="0" step="0.01" name="price_adult" id="f_price_adult" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_adult'] ?>">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Gia tre em</span>
+                            <span class="text-sm text-slate-700">Giá trẻ em</span>
                             <input type="number" min="0" step="0.01" name="price_child" id="f_price_child" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_child'] ?>">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">Gia em be</span>
+                            <span class="text-sm text-slate-700">Giá em bé</span>
                             <input type="number" min="0" step="0.01" name="price_baby" id="f_price_baby" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (float)$formDefaults['price_baby'] ?>">
                         </label>
 
                         <label class="block">
-                            <span class="text-sm text-slate-700">So khach toi da</span>
+                            <span class="text-sm text-slate-700">Số khách tối đa</span>
                             <input type="number" min="1" name="max_passengers" id="f_max_passengers" class="mt-1 w-full border rounded-lg px-3 py-2" value="<?= (int)$formDefaults['max_passengers'] ?>">
                         </label>
 
                         <label class="block md:col-span-2">
-                            <span class="text-sm text-slate-700">Tong quan</span>
-                            <textarea name="overview" id="f_overview" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Mo ta ngan"></textarea>
+                            <span class="text-sm text-slate-700">Tổng quan</span>
+                            <textarea name="overview" id="f_overview" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Mô tả ngắn"></textarea>
                         </label>
 
                         <label class="block md:col-span-2">
-                            <span class="text-sm text-slate-700">Mo ta chi tiet</span>
-                            <textarea name="description" id="f_description" rows="4" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Noi dung mo ta"></textarea>
+                            <span class="text-sm text-slate-700">Mô tả chi tiết</span>
+                            <textarea name="description" id="f_description" rows="4" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Nội dung mô tả"></textarea>
                         </label>
 
                         <label class="block md:col-span-2">
-                            <span class="text-sm text-slate-700">Diem noi bat</span>
-                            <textarea name="highlight" id="f_highlight" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Diem noi bat cua tour"></textarea>
+                            <span class="text-sm text-slate-700">Điểm nổi bật</span>
+                            <textarea name="highlight" id="f_highlight" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Điểm nổi bật cua tour"></textarea>
                         </label>
 
                         <label class="block md:col-span-2">
-                            <span class="text-sm text-slate-700">Chinh sach</span>
-                            <textarea name="policy" id="f_policy" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Chinh sach hoan huy, tre em..."></textarea>
+                            <span class="text-sm text-slate-700">Chính sách</span>
+                            <textarea name="policy" id="f_policy" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Chính sách hoan huy, tre em..."></textarea>
                         </label>
                     </div>
 
                     <div class="sticky bottom-0 bg-white border-t border-slate-200 pt-4 mt-6 flex items-center justify-end gap-3">
-                        <button type="button" id="tourFormCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Huy</button>
-                        <button type="submit" id="tourFormSubmit" class="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Luu tour</button>
+                        <button type="button" id="tourFormCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Hủy</button>
+                        <button type="submit" id="tourFormSubmit" class="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Lưu tour</button>
                     </div>
                 </form>
             </div>
@@ -629,11 +629,11 @@ $messageType = $_GET['type'] ?? 'success';
         <div class="absolute inset-0 bg-slate-900/60" id="confirmBackdrop"></div>
         <div class="relative max-w-md mx-auto mt-40 px-4">
             <div class="panel rounded-2xl shadow-2xl p-5">
-                <h3 id="confirmTitle" class="text-lg font-semibold text-slate-900">Xac nhan thao tac</h3>
-                <p id="confirmMessage" class="text-sm text-slate-600 mt-2">Ban co chac chan muon tiep tuc?</p>
+                <h3 id="confirmTitle" class="text-lg font-semibold text-slate-900">Xác nhận thao tác</h3>
+                <p id="confirmMessage" class="text-sm text-slate-600 mt-2">Bạn có chắc chắn muốn tiep tuc?</p>
                 <div class="mt-5 flex items-center justify-end gap-2">
-                    <button type="button" id="confirmCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Huy</button>
-                    <button type="button" id="confirmAccept" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Xac nhan</button>
+                    <button type="button" id="confirmCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Hủy</button>
+                    <button type="button" id="confirmAccept" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Xác nhận</button>
                 </div>
             </div>
         </div>
@@ -651,7 +651,7 @@ $messageType = $_GET['type'] ?? 'success';
 
             if (toggle) {
                 const syncLabel = () => {
-                    toggle.textContent = body.classList.contains('admin-dark') ? 'Light mode' : 'Dark mode';
+                    toggle.textContent = body.classList.contains('admin-dark') ? 'Chế độ sáng' : 'Chế độ tối';
                 };
                 syncLabel();
 
@@ -681,10 +681,10 @@ $messageType = $_GET['type'] ?? 'success';
             const source = data || defaults;
             const isEdit = mode === 'edit';
 
-            tourModalTitle.textContent = isEdit ? 'Chinh sua tour' : 'Them tour moi';
+            tourModalTitle.textContent = isEdit ? 'Chỉnh sửa tour' : 'Thêm tour mới';
             tourFormAction.value = isEdit ? 'update' : 'add';
             tourFormId.value = isEdit ? (source.id || 0) : 0;
-            tourFormSubmit.textContent = isEdit ? 'Cap nhat tour' : 'Them tour';
+            tourFormSubmit.textContent = isEdit ? 'Cập nhật tour' : 'Thêm tour';
 
             setField('f_code', source.code);
             setField('f_title', source.title);
@@ -780,8 +780,8 @@ $messageType = $_GET['type'] ?? 'success';
                 const actionLabel = mode === 'hide' ? 'an' : 'hien';
 
                 openConfirm(
-                    'Xac nhan thay doi trang thai',
-                    `Ban co chac chan muon ${actionLabel} "${title}"?`,
+                    'Xác nhận thay đổi trạng thái',
+                    `Bạn có chắc chắn muốn ${actionLabel} "${title}"?`,
                     () => {
                         actionFormAction.value = 'toggle';
                         actionFormId.value = id;
@@ -799,8 +799,8 @@ $messageType = $_GET['type'] ?? 'success';
                 const title = btn.dataset.title || 'tour nay';
 
                 openConfirm(
-                    'Xoa tour',
-                    `Ban co chac chan muon xoa "${title}"? Du lieu lien quan se bi xoa.`,
+                    'Xóa tour',
+                    `Bạn có chắc chắn muốn xoa "${title}"? Dữ liệu liên quan sẽ bị xóa.`,
                     () => {
                         actionFormAction.value = 'delete';
                         actionFormId.value = id;
@@ -825,3 +825,4 @@ $messageType = $_GET['type'] ?? 'success';
     </script>
 </body>
 </html>
+

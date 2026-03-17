@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/auth.php';
 adminRequireLogin();
 
@@ -85,13 +85,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $returnQuery = (string)($_POST['return_qs'] ?? '');
 
     if (!$bookingsTableExists) {
-        redirectWithMessage('Bang bookings chua ton tai trong database.', 'error', $returnQuery);
+        redirectWithMessage('Bảng bookings chưa tồn tại trong database.', 'error', $returnQuery);
     }
 
     if ($action === 'mark_paid') {
         $bookingId = (int)($_POST['booking_id'] ?? 0);
         if ($bookingId <= 0) {
-            redirectWithMessage('Booking khong hop le.', 'error', $returnQuery);
+            redirectWithMessage('Booking không hợp lệ.', 'error', $returnQuery);
         }
 
         try {
@@ -100,18 +100,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $booking = $stmt->fetch();
 
             if (!$booking) {
-                redirectWithMessage('Khong tim thay booking.', 'error', $returnQuery);
+                redirectWithMessage('Không tìm thấy booking.', 'error', $returnQuery);
             }
 
             $currentStatus = strtoupper((string)($booking['payment_status'] ?? 'UNPAID'));
             if ($currentStatus !== 'PENDING') {
-                redirectWithMessage('Chi doi soat duoc booking dang PENDING.', 'error', $returnQuery);
+                redirectWithMessage('Chỉ đối soát được booking đang PENDING.', 'error', $returnQuery);
             }
 
             $setParts = ['payment_status = :payment_status', 'payment_message = :payment_message'];
             $params = [
                 'payment_status' => 'PAID',
-                'payment_message' => 'Cap nhat thu cong boi admin',
+                'payment_message' => 'Cập nhật thủ công bởi admin',
                 'id' => $bookingId,
                 'current_status' => 'PENDING',
             ];
@@ -131,16 +131,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $update->execute($params);
 
             if ($update->rowCount() > 0) {
-                redirectWithMessage('Da doi soat thanh cong: PENDING -> PAID.', 'success', $returnQuery);
+                redirectWithMessage('Đã đối soát thành công: PENDING -> PAID.', 'success', $returnQuery);
             }
 
-            redirectWithMessage('Booking da duoc cap nhat boi thao tac khac.', 'error', $returnQuery);
+            redirectWithMessage('Booking đã được cập nhật bởi thao tác khác.', 'error', $returnQuery);
         } catch (Throwable $e) {
-            redirectWithMessage('Khong the doi soat booking: ' . $e->getMessage(), 'error', $returnQuery);
+            redirectWithMessage('Không thể đối soát booking: ' . $e->getMessage(), 'error', $returnQuery);
         }
     }
 
-    redirectWithMessage('Hanh dong khong hop le.', 'error', $returnQuery);
+    redirectWithMessage('Hành động không hợp lệ.', 'error', $returnQuery);
 }
 
 $filterMethod = strtoupper(trim((string)($_GET['payment_method'] ?? '')));
@@ -285,7 +285,7 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Quan ly dat tour | SmartTourist</title>
+    <title>Quản lý đặt tour | SmartTourist</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/admin.css">
@@ -294,15 +294,15 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
 <div class="admin-layout">
     <aside class="admin-sidebar">
         <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
-        <h2 class="mt-1 font-extrabold text-slate-900">Admin Console</h2>
+        <h2 class="mt-1 font-extrabold text-slate-900">Bảng điều khiển</h2>
         <nav class="mt-6">
-            <a class="sidebar-link" href="tours.php">Tours</a>
-            <a class="sidebar-link active" href="bookings.php">Bookings</a>
-            <a class="sidebar-link" href="payments.php">Payments</a>
-            <a class="sidebar-link" href="settings.php">Settings</a>
+            <a class="sidebar-link" href="tours.php">Tour</a>
+            <a class="sidebar-link active" href="bookings.php">Đặt tour</a>
+            <a class="sidebar-link" href="payments.php">Thanh toán</a>
+            <a class="sidebar-link" href="settings.php">Cài đặt</a>
         </nav>
         <div class="mt-6 pt-4 border-t border-slate-200">
-            <a href="logout.php" class="admin-btn admin-btn-danger w-full">Dang xuat</a>
+            <a href="logout.php" class="admin-btn admin-btn-danger w-full">Đăng xuất</a>
         </div>
     </aside>
 
@@ -310,25 +310,25 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
         <header class="admin-topbar">
             <div class="admin-shell py-3 flex items-center justify-between">
                 <div>
-                    <h1 class="admin-title text-2xl">Quan ly dat tour</h1>
-                    <p class="admin-subtitle">Loc, sap xep, doi soat thanh toan nhanh.</p>
+                    <h1 class="admin-title text-2xl">Quản lý đặt tour</h1>
+                    <p class="admin-subtitle">Lọc, sắp xếp, đối soát thanh toán nhanh.</p>
                 </div>
-                <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Dark mode</button>
+                <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Chế độ tối</button>
             </div>
         </header>
 
         <main class="admin-shell space-y-6">
             <section class="admin-stat-grid">
                 <article class="admin-stat">
-                    <p class="label">Tong booking</p>
+                    <p class="label">Tổng booking</p>
                     <p class="value"><?= (int)$totalRows ?></p>
                 </article>
                 <article class="admin-stat">
-                    <p class="label">Booking PENDING</p>
+                    <p class="label">Booking chờ thanh toán</p>
                     <p class="value text-amber-700"><?= (int)$statPending ?></p>
                 </article>
                 <article class="admin-stat">
-                    <p class="label">Booking PAID</p>
+                    <p class="label">Booking đã thanh toán</p>
                     <p class="value text-emerald-700"><?= (int)$statPaid ?></p>
                 </article>
             </section>
@@ -341,25 +341,25 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
 
             <?php if (!$bookingsTableExists): ?>
                 <section class="bg-red-100 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
-                    Khong tim thay bang bookings trong database. Vui long tao bang nay truoc khi quan ly dat tour.
+                    Không tìm thấy bảng bookings trong database. Vui lòng tạo bảng này trước khi quản lý đặt tour.
                 </section>
             <?php endif; ?>
 
             <section class="admin-panel p-4 <?= !$bookingsTableExists ? 'opacity-60 pointer-events-none' : '' ?>">
                 <form method="get" class="grid md:grid-cols-5 gap-3 items-end">
                     <label class="block">
-                        <span class="text-xs text-slate-600">Phuong thuc</span>
+                        <span class="text-xs text-slate-600">Phương thức</span>
                         <select name="payment_method" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
-                            <option value="">Tat ca</option>
+                            <option value="">Tất cả</option>
                             <option value="MOMO" <?= $filterMethod === 'MOMO' ? 'selected' : '' ?>>MOMO</option>
                             <option value="CASH" <?= $filterMethod === 'CASH' ? 'selected' : '' ?>>CASH</option>
                         </select>
                     </label>
 
                     <label class="block">
-                        <span class="text-xs text-slate-600">Trang thai TT</span>
+                        <span class="text-xs text-slate-600">Trạng thái TT</span>
                         <select name="payment_status" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
-                            <option value="">Tat ca</option>
+                            <option value="">Tất cả</option>
                             <option value="PENDING" <?= $filterStatus === 'PENDING' ? 'selected' : '' ?>>PENDING</option>
                             <option value="PAID" <?= $filterStatus === 'PAID' ? 'selected' : '' ?>>PAID</option>
                             <option value="FAILED" <?= $filterStatus === 'FAILED' ? 'selected' : '' ?>>FAILED</option>
@@ -368,7 +368,7 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
                     </label>
 
                     <label class="block">
-                        <span class="text-xs text-slate-600">So dong / trang</span>
+                        <span class="text-xs text-slate-600">Số dòng / trang</span>
                         <select name="per_page" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
                             <?php foreach ([10, 20, 50, 100] as $n): ?>
                                 <option value="<?= $n ?>" <?= $perPage === $n ? 'selected' : '' ?>><?= $n ?></option>
@@ -377,11 +377,11 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
                     </label>
 
                     <label class="block md:col-span-2">
-                        <span class="text-xs text-slate-600">Tim kiem (ten khach, SDT, tour, ma thanh toan)</span>
+                        <span class="text-xs text-slate-600">Tìm kiếm (tên khách, SĐT, tour, mã thanh toán)</span>
                         <div class="mt-1 flex gap-2">
-                            <input type="text" name="keyword" value="<?= e($filterKeyword) ?>" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Nhap tu khoa...">
-                            <button type="submit" class="admin-btn admin-btn-primary">Loc</button>
-                            <a href="bookings.php" class="admin-btn admin-btn-outline">Xoa loc</a>
+                            <input type="text" name="keyword" value="<?= e($filterKeyword) ?>" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Nhập từ khóa...">
+                            <button type="submit" class="admin-btn admin-btn-primary">Lọc</button>
+                            <a href="bookings.php" class="admin-btn admin-btn-outline">Xóa lọc</a>
                         </div>
                     </label>
                 </form>
@@ -394,17 +394,17 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
                             <tr>
                                 <th><?= sortLink('id', 'ID', $sortBy, $sortDir) ?></th>
                                 <th><?= sortLink('tour', 'Tour', $sortBy, $sortDir) ?></th>
-                                <th><?= sortLink('customer_name', 'Khach', $sortBy, $sortDir) ?></th>
+                                <th><?= sortLink('customer_name', 'Khách', $sortBy, $sortDir) ?></th>
                                 <th>SDT</th>
-                                <th><?= sortLink('payment_method', 'Thanh toan', $sortBy, $sortDir) ?></th>
-                                <th><?= sortLink('payment_status', 'Trang thai TT', $sortBy, $sortDir) ?></th>
-                                <th>Ma thanh toan</th>
-                                <th>Nguoi lon</th>
-                                <th>Tre em</th>
-                                <th>Em be</th>
-                                <th><?= sortLink('total_amount', 'Tong tien', $sortBy, $sortDir) ?></th>
-                                <th><?= sortLink('created_at', 'Ngay dat', $sortBy, $sortDir) ?></th>
-                                <th>Thao tac</th>
+                                <th><?= sortLink('payment_method', 'Thanh toán', $sortBy, $sortDir) ?></th>
+                                <th><?= sortLink('payment_status', 'Trạng thái TT', $sortBy, $sortDir) ?></th>
+                                <th>Mã thanh toán</th>
+                                <th>Người lớn</th>
+                                <th>Trẻ em</th>
+                                <th>Em bé</th>
+                                <th><?= sortLink('total_amount', 'Tổng tiền', $sortBy, $sortDir) ?></th>
+                                <th><?= sortLink('created_at', 'Ngày đặt', $sortBy, $sortDir) ?></th>
+                                <th>Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -413,7 +413,7 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
                                     <?php $status = strtoupper((string)($row['payment_status'] ?? 'UNPAID')); ?>
                                     <tr>
                                         <td><?= (int)($row['id'] ?? 0) ?></td>
-                                        <td><?= e($row['tour_title'] ?? 'Tour da bi xoa') ?></td>
+                                        <td><?= e($row['tour_title'] ?? 'Tour đã bị xóa') ?></td>
                                         <td><?= e($row['customer_name'] ?? '') ?></td>
                                         <td><?= e($row['phone'] ?? '') ?></td>
                                         <td><?= e($row['payment_method'] ?? 'CASH') ?></td>
@@ -430,11 +430,11 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
                                         <td><?= e($row['created_at'] ?? '') ?></td>
                                         <td>
                                             <?php if ($status === 'PENDING'): ?>
-                                                <form method="post" onsubmit="return confirm('Xac nhan doi soat booking nay sang PAID?');">
+                                                <form method="post" onsubmit="return confirm('Xác nhận đối soát booking này sang PAID?');">
                                                     <input type="hidden" name="action" value="mark_paid">
                                                     <input type="hidden" name="booking_id" value="<?= (int)($row['id'] ?? 0) ?>">
                                                     <input type="hidden" name="return_qs" value="<?= e($returnQuery) ?>">
-                                                    <button type="submit" class="admin-btn admin-btn-primary !px-3 !py-1.5 !text-xs">Doi soat -> PAID</button>
+                                                    <button type="submit" class="admin-btn admin-btn-primary !px-3 !py-1.5 !text-xs">Đối soát -> PAID</button>
                                                 </form>
                                             <?php else: ?>
                                                 <span class="text-xs text-slate-400">-</span>
@@ -444,7 +444,7 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="13" class="text-center text-slate-500">Khong co booking phu hop bo loc.</td>
+                                    <td colspan="13" class="text-center text-slate-500">Không có booking phù hợp bộ lọc.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -453,7 +453,7 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
 
                 <?php if ($bookingsTableExists): ?>
                     <div class="admin-pagination">
-                        <p>Hien thi <?= count($bookings) ?> / <?= (int)$totalRows ?> booking</p>
+                        <p>Hiển thị <?= count($bookings) ?> / <?= (int)$totalRows ?> booking</p>
                         <div class="admin-page-links">
                             <?php if ($page > 1): ?>
                                 <a class="admin-page-link" href="bookings.php?<?= e(buildQuery(['page' => $page - 1], ['msg', 'type'])) ?>">Truoc</a>
@@ -490,7 +490,7 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
     }
 
     function syncLabel() {
-        toggle.textContent = body.classList.contains('admin-dark') ? 'Light mode' : 'Dark mode';
+        toggle.textContent = body.classList.contains('admin-dark') ? 'Chế độ sáng' : 'Chế độ tối';
     }
     syncLabel();
 
@@ -503,3 +503,4 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
 </script>
 </body>
 </html>
+

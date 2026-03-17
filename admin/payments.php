@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/auth.php';
 adminRequireLogin();
 ?>
@@ -7,7 +7,7 @@ adminRequireLogin();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Payments | SmartTourist Admin</title>
+    <title>Thanh toán | SmartTourist Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/admin.css">
@@ -16,31 +16,31 @@ adminRequireLogin();
 <div class="admin-layout">
     <aside class="admin-sidebar">
         <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
-        <h2 class="mt-1 font-extrabold text-slate-900">Admin Console</h2>
+        <h2 class="mt-1 font-extrabold text-slate-900">Bảng điều khiển</h2>
         <nav class="mt-6">
-            <a class="sidebar-link" href="tours.php">Tours</a>
-            <a class="sidebar-link" href="bookings.php">Bookings</a>
-            <a class="sidebar-link active" href="payments.php">Payments</a>
-            <a class="sidebar-link" href="settings.php">Settings</a>
+            <a class="sidebar-link" href="tours.php">Tour</a>
+            <a class="sidebar-link" href="bookings.php">Đặt tour</a>
+            <a class="sidebar-link active" href="payments.php">Thanh toán</a>
+            <a class="sidebar-link" href="settings.php">Cài đặt</a>
         </nav>
         <div class="mt-6 pt-4 border-t border-slate-200">
-            <a href="logout.php" class="admin-btn admin-btn-danger w-full">Dang xuat</a>
+            <a href="logout.php" class="admin-btn admin-btn-danger w-full">Đăng xuất</a>
         </div>
     </aside>
     <div class="admin-content">
         <header class="admin-topbar">
             <div class="admin-shell py-3 flex items-center justify-between">
                 <div>
-                    <h1 class="admin-title text-2xl">Payments</h1>
-                    <p class="admin-subtitle">Quan ly doi soat va cau hinh cong thanh toan.</p>
+                    <h1 class="admin-title text-2xl">Thanh toán</h1>
+                    <p class="admin-subtitle">Quản lý đối soát và cấu hình cổng thanh toán.</p>
                 </div>
-                <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Dark mode</button>
+                <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Chế độ tối</button>
             </div>
         </header>
         <main class="admin-shell">
             <section class="admin-panel p-6">
-                <h2 class="text-lg font-bold text-slate-900">Coming soon</h2>
-                <p class="text-sm text-slate-600 mt-2">Trang Payments se duoc mo rong cho doi soat MoMo, lich su IPN va export bao cao.</p>
+                <h2 class="text-lg font-bold text-slate-900">Sắp ra mắt</h2>
+                <p class="text-sm text-slate-600 mt-2">Trang Thanh toán se duoc mo rong cho doi soat MoMo, lich su IPN va export bao cao.</p>
             </section>
         </main>
     </div>
@@ -51,10 +51,11 @@ adminRequireLogin();
   const btn=document.getElementById('darkModeToggle');
   const key='smarttourist-admin-dark';
   if(localStorage.getItem(key)==='1'){body.classList.add('admin-dark');}
-  const sync=()=>btn.textContent=body.classList.contains('admin-dark')?'Light mode':'Dark mode';
+  const sync=()=>btn.textContent=body.classList.contains('admin-dark')?'Chế độ sáng':'Chế độ tối';
   sync();
   btn.addEventListener('click',()=>{body.classList.toggle('admin-dark');localStorage.setItem(key,body.classList.contains('admin-dark')?'1':'0');sync();});
 })();
 </script>
 </body>
 </html>
+
