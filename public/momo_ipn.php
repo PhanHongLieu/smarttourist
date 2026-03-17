@@ -19,7 +19,7 @@ try {
         exit;
     }
 
-    $cfg = momoConfig();
+    $cfg = momoConfig($pdo);
     if ($cfg['secretKey'] === '') {
         http_response_code(500);
         echo json_encode(['resultCode' => 2, 'message' => 'Missing MoMo secret']);

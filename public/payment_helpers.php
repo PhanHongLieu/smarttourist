@@ -1,5 +1,54 @@
 <?php
 
+function settingsTableExists(PDO $pdo): bool
+{
+    try {
+        $stmt = $pdo->prepare('SHOW TABLES LIKE :table_name');
+        $stmt->execute(['table_name' => 'admin_settings']);
+        return (bool)$stmt->fetchColumn();
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+function fetchAdminSettings(PDO $pdo): array
+{
+    static $cache = null;
+
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    if (!settingsTableExists($pdo)) {
+        $cache = [];
+        return $cache;
+    }
+
+    try {
+        $stmt = $pdo->query('SELECT setting_key, setting_value FROM admin_settings');
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $cache = [];
+        foreach ($rows as $row) {
+            $key = (string)($row['setting_key'] ?? '');
+            if ($key === '') {
+                continue;
+            }
+            $cache[$key] = (string)($row['setting_value'] ?? '');
+        }
+        return $cache;
+    } catch (Throwable $e) {
+        $cache = [];
+        return $cache;
+    }
+}
+
+function getAdminSetting(PDO $pdo, string $key, string $default = ''): string
+{
+    $settings = fetchAdminSettings($pdo);
+    $value = $settings[$key] ?? '';
+    return $value !== '' ? $value : $default;
+}
+
 function paymentTableHasColumn(PDO $pdo, string $table, string $column): bool
 {
     $stmt = $pdo->prepare("SHOW COLUMNS FROM {$table} LIKE :column_name");
@@ -78,8 +127,15 @@ function buildUpdateFromAvailableColumns(PDO $pdo, string $whereColumn, array $p
     return [$sql, $data];
 }
 
-function getPublicBaseUrl(): string
+function getPublicBaseUrl(?PDO $pdo = null): string
 {
+    if ($pdo !== null) {
+        $dbBaseUrl = trim(getAdminSetting($pdo, 'app_base_url', ''));
+        if ($dbBaseUrl !== '') {
+            return rtrim($dbBaseUrl, '/');
+        }
+    }
+
     if (!empty(getenv('APP_BASE_URL'))) {
         return rtrim((string)getenv('APP_BASE_URL'), '/');
     }
@@ -93,15 +149,34 @@ function getPublicBaseUrl(): string
     return $scheme . '://' . $host;
 }
 
-function momoConfig(): array
+function momoConfig(?PDO $pdo = null): array
 {
+    $db = [];
+    if ($pdo !== null) {
+        $db = fetchAdminSettings($pdo);
+    }
+
+    $get = static function(string $dbKey, string $envKey, string $default = '') use ($db): string {
+        $dbVal = trim((string)($db[$dbKey] ?? ''));
+        if ($dbVal !== '') {
+            return $dbVal;
+        }
+
+        $envVal = getenv($envKey);
+        if ($envVal !== false && (string)$envVal !== '') {
+            return (string)$envVal;
+        }
+
+        return $default;
+    };
+
     return [
-        'endpoint' => getenv('MOMO_ENDPOINT') ?: 'https://test-payment.momo.vn/v2/gateway/api/create',
-        'partnerCode' => (string)(getenv('MOMO_PARTNER_CODE') ?: ''),
-        'accessKey' => (string)(getenv('MOMO_ACCESS_KEY') ?: ''),
-        'secretKey' => (string)(getenv('MOMO_SECRET_KEY') ?: ''),
-        'requestType' => getenv('MOMO_REQUEST_TYPE') ?: 'captureWallet',
-        'lang' => getenv('MOMO_LANG') ?: 'vi',
+        'endpoint' => $get('momo_endpoint', 'MOMO_ENDPOINT', 'https://test-payment.momo.vn/v2/gateway/api/create'),
+        'partnerCode' => $get('momo_partner_code', 'MOMO_PARTNER_CODE', ''),
+        'accessKey' => $get('momo_access_key', 'MOMO_ACCESS_KEY', ''),
+        'secretKey' => $get('momo_secret_key', 'MOMO_SECRET_KEY', ''),
+        'requestType' => $get('momo_request_type', 'MOMO_REQUEST_TYPE', 'captureWallet'),
+        'lang' => $get('momo_lang', 'MOMO_LANG', 'vi'),
     ];
 }
 
@@ -148,9 +223,9 @@ function momoVerifyIpnSignature(array $data, string $secretKey): bool
     return hash_equals($expected, (string)$data['signature']);
 }
 
-function momoCreatePayment(array $input): array
+function momoCreatePayment(array $input, ?PDO $pdo = null): array
 {
-    $config = momoConfig();
+    $config = momoConfig($pdo);
     if ($config['partnerCode'] === '' || $config['accessKey'] === '' || $config['secretKey'] === '') {
         return [
             'ok' => false,

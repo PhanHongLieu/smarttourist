@@ -12,7 +12,7 @@ $resultCode = (int)($_GET['resultCode'] ?? -1);
 $message = trim((string)($_GET['message'] ?? ''));
 $signatureValid = false;
 
-$cfg = momoConfig();
+$cfg = momoConfig($pdo);
 if ($cfg['secretKey'] !== '') {
     // Return URL payload from MoMo normally contains similar fields as IPN.
     $signatureValid = momoVerifyIpnSignature($_GET, $cfg['secretKey']);

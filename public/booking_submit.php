@@ -87,7 +87,7 @@ $momoCreateError = '';
 $momoPayUrl = '';
 
 if ($paymentMethod === 'MOMO') {
-    $baseUrl = getPublicBaseUrl();
+    $baseUrl = getPublicBaseUrl($pdo);
     $orderId = $paymentReference;
     $requestId = $paymentReference . '-REQ';
     $orderInfo = 'Thanh toan booking #' . $bookingId . ' - SmartTourist';
@@ -105,7 +105,7 @@ if ($paymentMethod === 'MOMO') {
         'redirectUrl' => $baseUrl . '/momo_return.php',
         'ipnUrl' => $baseUrl . '/momo_ipn.php',
         'extraData' => $extraData,
-    ]);
+    ], $pdo);
 
     if (!empty($result['ok'])) {
         $momoPayUrl = (string)$result['payUrl'];
