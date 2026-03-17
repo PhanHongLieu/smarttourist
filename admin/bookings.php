@@ -45,13 +45,28 @@ function ensureBookingPaymentColumns(PDO $pdo): void
     }
 }
 
+function buildQuery(array $overrides = [], array $exclude = []): string
+{
+    $params = $_GET;
+    foreach ($exclude as $k) {
+        unset($params[$k]);
+    }
+    foreach ($overrides as $k => $v) {
+        if ($v === null || $v === '') {
+            unset($params[$k]);
+        } else {
+            $params[$k] = $v;
+        }
+    }
+    return http_build_query($params);
+}
+
 function redirectWithMessage(string $message, string $type = 'success', string $returnQuery = ''): void
 {
     $params = [];
     if ($returnQuery !== '') {
         parse_str($returnQuery, $params);
     }
-
     unset($params['msg'], $params['type']);
     $params['msg'] = $message;
     $params['type'] = $type;
@@ -98,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'payment_status' => 'PAID',
                 'payment_message' => 'Cap nhat thu cong boi admin',
                 'id' => $bookingId,
+                'current_status' => 'PENDING',
             ];
 
             if (tableHasColumn($pdo, 'bookings', 'payment_trans_id')) {
@@ -111,7 +127,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $sql = 'UPDATE bookings SET ' . implode(', ', $setParts) . ' WHERE id = :id AND payment_status = :current_status';
-            $params['current_status'] = 'PENDING';
             $update = $pdo->prepare($sql);
             $update->execute($params);
 
@@ -142,6 +157,31 @@ if (!in_array($filterStatus, $allowedStatuses, true)) {
     $filterStatus = '';
 }
 
+$sortBy = (string)($_GET['sort_by'] ?? 'created_at');
+$sortDir = strtolower((string)($_GET['sort_dir'] ?? 'desc'));
+$sortMap = [
+    'id' => 'b.id',
+    'tour' => 't.title',
+    'customer_name' => 'b.customer_name',
+    'payment_method' => 'b.payment_method',
+    'payment_status' => 'b.payment_status',
+    'total_amount' => 'b.total_amount',
+    'created_at' => 'b.created_at',
+];
+if (!array_key_exists($sortBy, $sortMap)) {
+    $sortBy = 'created_at';
+}
+if (!in_array($sortDir, ['asc', 'desc'], true)) {
+    $sortDir = 'desc';
+}
+
+$perPage = (int)($_GET['per_page'] ?? 20);
+if (!in_array($perPage, [10, 20, 50, 100], true)) {
+    $perPage = 20;
+}
+$page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($page - 1) * $perPage;
+
 $where = [];
 $bindings = [];
 
@@ -149,32 +189,65 @@ if ($filterMethod !== '') {
     $where[] = 'UPPER(COALESCE(b.payment_method, \"CASH\")) = :payment_method';
     $bindings['payment_method'] = $filterMethod;
 }
-
 if ($filterStatus !== '') {
     $where[] = 'UPPER(COALESCE(b.payment_status, \"UNPAID\")) = :payment_status';
     $bindings['payment_status'] = $filterStatus;
 }
-
 if ($filterKeyword !== '') {
     $where[] = '(b.customer_name LIKE :kw OR b.phone LIKE :kw OR t.title LIKE :kw OR b.payment_reference LIKE :kw)';
     $bindings['kw'] = '%' . $filterKeyword . '%';
 }
 
 $bookings = [];
+$totalRows = 0;
+$totalPages = 1;
+$statPending = 0;
+$statPaid = 0;
+
 if ($bookingsTableExists) {
     try {
         $whereSql = count($where) > 0 ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+        $countSql = "
+            SELECT
+                COUNT(*) AS total_rows,
+                SUM(CASE WHEN UPPER(COALESCE(b.payment_status, 'UNPAID')) = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
+                SUM(CASE WHEN UPPER(COALESCE(b.payment_status, 'UNPAID')) = 'PAID' THEN 1 ELSE 0 END) AS paid_count
+            FROM bookings b
+            LEFT JOIN tours t ON b.tour_id = t.id
+            {$whereSql}
+        ";
+        $countStmt = $pdo->prepare($countSql);
+        foreach ($bindings as $key => $value) {
+            $countStmt->bindValue(':' . $key, $value);
+        }
+        $countStmt->execute();
+        $stats = $countStmt->fetch();
+        $totalRows = (int)($stats['total_rows'] ?? 0);
+        $statPending = (int)($stats['pending_count'] ?? 0);
+        $statPaid = (int)($stats['paid_count'] ?? 0);
+
+        $totalPages = max(1, (int)ceil($totalRows / $perPage));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+            $offset = ($page - 1) * $perPage;
+        }
+
+        $orderExpr = $sortMap[$sortBy];
         $sql = "
             SELECT b.*, t.title AS tour_title
             FROM bookings b
             LEFT JOIN tours t ON b.tour_id = t.id
             {$whereSql}
-            ORDER BY b.created_at DESC, b.id DESC
+            ORDER BY {$orderExpr} " . strtoupper($sortDir) . ", b.id DESC
+            LIMIT :limit OFFSET :offset
         ";
         $stmt = $pdo->prepare($sql);
         foreach ($bindings as $key => $value) {
             $stmt->bindValue(':' . $key, $value);
         }
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
         $bookings = $stmt->fetchAll();
     } catch (Throwable $e) {
@@ -184,18 +257,28 @@ if ($bookingsTableExists) {
 
 $flashMessage = (string)($_GET['msg'] ?? '');
 $flashType = (string)($_GET['type'] ?? 'success');
+$returnQuery = buildQuery([], ['msg', 'type']);
 
-$returnParams = [];
-if ($filterMethod !== '') {
-    $returnParams['payment_method'] = $filterMethod;
+function sortLink(string $column, string $label, string $currentSort, string $currentDir): string
+{
+    $newDir = 'asc';
+    $arrow = '↕';
+    $active = false;
+    if ($currentSort === $column) {
+        $active = true;
+        if ($currentDir === 'asc') {
+            $newDir = 'desc';
+            $arrow = '↑';
+        } else {
+            $newDir = 'asc';
+            $arrow = '↓';
+        }
+    }
+
+    $qs = buildQuery(['sort_by' => $column, 'sort_dir' => $newDir, 'page' => 1], ['msg', 'type']);
+    $class = $active ? 'sort-link active' : 'sort-link';
+    return '<a class="' . $class . '" href="bookings.php?' . e($qs) . '">' . e($label) . ' <span class="arrow">' . $arrow . '</span></a>';
 }
-if ($filterStatus !== '') {
-    $returnParams['payment_status'] = $filterStatus;
-}
-if ($filterKeyword !== '') {
-    $returnParams['keyword'] = $filterKeyword;
-}
-$returnQuery = http_build_query($returnParams);
 ?>
 <!doctype html>
 <html lang="vi">
@@ -204,131 +287,219 @@ $returnQuery = http_build_query($returnParams);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Quan ly dat tour | SmartTourist</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/admin.css">
 </head>
-<body class="bg-slate-100">
-    <main class="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        <div class="flex items-center justify-between gap-3">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-800">Danh sach dat tour</h1>
-                <p class="text-sm text-slate-600">Thong tin booking, doi soat thanh toan va loc du lieu.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="tours.php" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm">Quan ly tour</a>
-                <a href="logout.php" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm">Dang xuat</a>
-            </div>
+<body class="admin-theme" id="adminBody">
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
+        <h2 class="mt-1 font-extrabold text-slate-900">Admin Console</h2>
+        <nav class="mt-6">
+            <a class="sidebar-link" href="tours.php">Tours</a>
+            <a class="sidebar-link active" href="bookings.php">Bookings</a>
+            <a class="sidebar-link" href="payments.php">Payments</a>
+            <a class="sidebar-link" href="settings.php">Settings</a>
+        </nav>
+        <div class="mt-6 pt-4 border-t border-slate-200">
+            <a href="logout.php" class="admin-btn admin-btn-danger w-full">Dang xuat</a>
         </div>
+    </aside>
 
-        <?php if ($flashMessage !== ''): ?>
-            <div class="rounded-lg px-4 py-3 text-sm <?= $flashType === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' ?>">
-                <?= e($flashMessage) ?>
+    <div class="admin-content">
+        <header class="admin-topbar">
+            <div class="admin-shell py-3 flex items-center justify-between">
+                <div>
+                    <h1 class="admin-title text-2xl">Quan ly dat tour</h1>
+                    <p class="admin-subtitle">Loc, sap xep, doi soat thanh toan nhanh.</p>
+                </div>
+                <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Dark mode</button>
             </div>
-        <?php endif; ?>
+        </header>
 
-        <?php if (!$bookingsTableExists): ?>
-            <section class="bg-red-100 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
-                Khong tim thay bang bookings trong database. Vui long tao bang nay truoc khi quan ly dat tour.
+        <main class="admin-shell space-y-6">
+            <section class="admin-stat-grid">
+                <article class="admin-stat">
+                    <p class="label">Tong booking</p>
+                    <p class="value"><?= (int)$totalRows ?></p>
+                </article>
+                <article class="admin-stat">
+                    <p class="label">Booking PENDING</p>
+                    <p class="value text-amber-700"><?= (int)$statPending ?></p>
+                </article>
+                <article class="admin-stat">
+                    <p class="label">Booking PAID</p>
+                    <p class="value text-emerald-700"><?= (int)$statPaid ?></p>
+                </article>
             </section>
-        <?php endif; ?>
 
-        <section class="bg-white rounded-xl shadow p-4 <?= !$bookingsTableExists ? 'opacity-60 pointer-events-none' : '' ?>">
-            <form method="get" class="grid md:grid-cols-4 gap-3 items-end">
-                <label class="block">
-                    <span class="text-xs text-slate-600">Phuong thuc</span>
-                    <select name="payment_method" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
-                        <option value="">Tat ca</option>
-                        <option value="MOMO" <?= $filterMethod === 'MOMO' ? 'selected' : '' ?>>MOMO</option>
-                        <option value="CASH" <?= $filterMethod === 'CASH' ? 'selected' : '' ?>>CASH</option>
-                    </select>
-                </label>
+            <?php if ($flashMessage !== ''): ?>
+                <div class="flash <?= $flashType === 'error' ? 'flash-error' : 'flash-success' ?>">
+                    <?= e($flashMessage) ?>
+                </div>
+            <?php endif; ?>
 
-                <label class="block">
-                    <span class="text-xs text-slate-600">Trang thai thanh toan</span>
-                    <select name="payment_status" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
-                        <option value="">Tat ca</option>
-                        <option value="PENDING" <?= $filterStatus === 'PENDING' ? 'selected' : '' ?>>PENDING</option>
-                        <option value="PAID" <?= $filterStatus === 'PAID' ? 'selected' : '' ?>>PAID</option>
-                        <option value="FAILED" <?= $filterStatus === 'FAILED' ? 'selected' : '' ?>>FAILED</option>
-                        <option value="UNPAID" <?= $filterStatus === 'UNPAID' ? 'selected' : '' ?>>UNPAID</option>
-                    </select>
-                </label>
+            <?php if (!$bookingsTableExists): ?>
+                <section class="bg-red-100 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+                    Khong tim thay bang bookings trong database. Vui long tao bang nay truoc khi quan ly dat tour.
+                </section>
+            <?php endif; ?>
 
-                <label class="block md:col-span-2">
-                    <span class="text-xs text-slate-600">Tim kiem (ten khach, SDT, tour, ma thanh toan)</span>
-                    <div class="mt-1 flex gap-2">
-                        <input type="text" name="keyword" value="<?= e($filterKeyword) ?>" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Nhap tu khoa...">
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm">Loc</button>
-                        <a href="bookings.php" class="px-4 py-2 rounded-lg border border-slate-300 text-sm">Xoa loc</a>
-                    </div>
-                </label>
-            </form>
-        </section>
+            <section class="admin-panel p-4 <?= !$bookingsTableExists ? 'opacity-60 pointer-events-none' : '' ?>">
+                <form method="get" class="grid md:grid-cols-5 gap-3 items-end">
+                    <label class="block">
+                        <span class="text-xs text-slate-600">Phuong thuc</span>
+                        <select name="payment_method" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
+                            <option value="">Tat ca</option>
+                            <option value="MOMO" <?= $filterMethod === 'MOMO' ? 'selected' : '' ?>>MOMO</option>
+                            <option value="CASH" <?= $filterMethod === 'CASH' ? 'selected' : '' ?>>CASH</option>
+                        </select>
+                    </label>
 
-        <section class="bg-white rounded-xl shadow overflow-hidden <?= !$bookingsTableExists ? 'opacity-60' : '' ?>">
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-slate-50 text-slate-600">
-                        <tr>
-                            <th class="px-4 py-3 text-left">ID</th>
-                            <th class="px-4 py-3 text-left">Tour</th>
-                            <th class="px-4 py-3 text-left">Khach</th>
-                            <th class="px-4 py-3 text-left">SDT</th>
-                            <th class="px-4 py-3 text-left">Thanh toan</th>
-                            <th class="px-4 py-3 text-left">Trang thai TT</th>
-                            <th class="px-4 py-3 text-left">Ma thanh toan</th>
-                            <th class="px-4 py-3 text-left">Nguoi lon</th>
-                            <th class="px-4 py-3 text-left">Tre em</th>
-                            <th class="px-4 py-3 text-left">Em be</th>
-                            <th class="px-4 py-3 text-left">Tong tien</th>
-                            <th class="px-4 py-3 text-left">Ngay dat</th>
-                            <th class="px-4 py-3 text-left">Thao tac</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (!empty($bookings)): ?>
-                            <?php foreach ($bookings as $row): ?>
-                                <tr class="border-t border-slate-100">
-                                    <td class="px-4 py-3"><?= (int)($row['id'] ?? 0) ?></td>
-                                    <td class="px-4 py-3"><?= e($row['tour_title'] ?? 'Tour da bi xoa') ?></td>
-                                    <td class="px-4 py-3"><?= e($row['customer_name'] ?? '') ?></td>
-                                    <td class="px-4 py-3"><?= e($row['phone'] ?? '') ?></td>
-                                    <td class="px-4 py-3"><?= e($row['payment_method'] ?? 'CASH') ?></td>
-                                    <td class="px-4 py-3">
-                                        <?php $status = strtoupper((string)($row['payment_status'] ?? 'UNPAID')); ?>
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' ?>">
-                                            <?= e($status) ?>
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 text-xs text-slate-600"><?= e($row['payment_reference'] ?? '') ?></td>
-                                    <td class="px-4 py-3"><?= (int)($row['adult'] ?? $row['quantity'] ?? 0) ?></td>
-                                    <td class="px-4 py-3"><?= (int)($row['child'] ?? 0) ?></td>
-                                    <td class="px-4 py-3"><?= (int)($row['baby'] ?? 0) ?></td>
-                                    <td class="px-4 py-3"><?= number_format((float)($row['total_amount'] ?? 0)) ?> đ</td>
-                                    <td class="px-4 py-3"><?= e($row['created_at'] ?? '') ?></td>
-                                    <td class="px-4 py-3">
-                                        <?php if ($status === 'PENDING'): ?>
-                                            <form method="post" onsubmit="return confirm('Xac nhan doi soat booking nay sang PAID?');">
-                                                <input type="hidden" name="action" value="mark_paid">
-                                                <input type="hidden" name="booking_id" value="<?= (int)($row['id'] ?? 0) ?>">
-                                                <input type="hidden" name="return_qs" value="<?= e($returnQuery) ?>">
-                                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">
-                                                    Doi soat -> PAID
-                                                </button>
-                                            </form>
-                                        <?php else: ?>
-                                            <span class="text-xs text-slate-400">-</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
+                    <label class="block">
+                        <span class="text-xs text-slate-600">Trang thai TT</span>
+                        <select name="payment_status" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
+                            <option value="">Tat ca</option>
+                            <option value="PENDING" <?= $filterStatus === 'PENDING' ? 'selected' : '' ?>>PENDING</option>
+                            <option value="PAID" <?= $filterStatus === 'PAID' ? 'selected' : '' ?>>PAID</option>
+                            <option value="FAILED" <?= $filterStatus === 'FAILED' ? 'selected' : '' ?>>FAILED</option>
+                            <option value="UNPAID" <?= $filterStatus === 'UNPAID' ? 'selected' : '' ?>>UNPAID</option>
+                        </select>
+                    </label>
+
+                    <label class="block">
+                        <span class="text-xs text-slate-600">So dong / trang</span>
+                        <select name="per_page" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
+                            <?php foreach ([10, 20, 50, 100] as $n): ?>
+                                <option value="<?= $n ?>" <?= $perPage === $n ? 'selected' : '' ?>><?= $n ?></option>
                             <?php endforeach; ?>
-                        <?php else: ?>
+                        </select>
+                    </label>
+
+                    <label class="block md:col-span-2">
+                        <span class="text-xs text-slate-600">Tim kiem (ten khach, SDT, tour, ma thanh toan)</span>
+                        <div class="mt-1 flex gap-2">
+                            <input type="text" name="keyword" value="<?= e($filterKeyword) ?>" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Nhap tu khoa...">
+                            <button type="submit" class="admin-btn admin-btn-primary">Loc</button>
+                            <a href="bookings.php" class="admin-btn admin-btn-outline">Xoa loc</a>
+                        </div>
+                    </label>
+                </form>
+            </section>
+
+            <section class="admin-panel overflow-hidden <?= !$bookingsTableExists ? 'opacity-60' : '' ?>">
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
+                        <thead>
                             <tr>
-                                <td colspan="14" class="px-4 py-6 text-center text-slate-500">Khong co booking phu hop bo loc.</td>
+                                <th><?= sortLink('id', 'ID', $sortBy, $sortDir) ?></th>
+                                <th><?= sortLink('tour', 'Tour', $sortBy, $sortDir) ?></th>
+                                <th><?= sortLink('customer_name', 'Khach', $sortBy, $sortDir) ?></th>
+                                <th>SDT</th>
+                                <th><?= sortLink('payment_method', 'Thanh toan', $sortBy, $sortDir) ?></th>
+                                <th><?= sortLink('payment_status', 'Trang thai TT', $sortBy, $sortDir) ?></th>
+                                <th>Ma thanh toan</th>
+                                <th>Nguoi lon</th>
+                                <th>Tre em</th>
+                                <th>Em be</th>
+                                <th><?= sortLink('total_amount', 'Tong tien', $sortBy, $sortDir) ?></th>
+                                <th><?= sortLink('created_at', 'Ngay dat', $sortBy, $sortDir) ?></th>
+                                <th>Thao tac</th>
                             </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </main>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($bookings)): ?>
+                                <?php foreach ($bookings as $row): ?>
+                                    <?php $status = strtoupper((string)($row['payment_status'] ?? 'UNPAID')); ?>
+                                    <tr>
+                                        <td><?= (int)($row['id'] ?? 0) ?></td>
+                                        <td><?= e($row['tour_title'] ?? 'Tour da bi xoa') ?></td>
+                                        <td><?= e($row['customer_name'] ?? '') ?></td>
+                                        <td><?= e($row['phone'] ?? '') ?></td>
+                                        <td><?= e($row['payment_method'] ?? 'CASH') ?></td>
+                                        <td>
+                                            <span class="badge <?= $status === 'PAID' ? 'badge-success' : ($status === 'FAILED' ? 'badge-error' : 'badge-warning') ?>">
+                                                <?= e($status) ?>
+                                            </span>
+                                        </td>
+                                        <td class="text-xs text-slate-500"><?= e($row['payment_reference'] ?? '') ?></td>
+                                        <td><?= (int)($row['adult'] ?? $row['quantity'] ?? 0) ?></td>
+                                        <td><?= (int)($row['child'] ?? 0) ?></td>
+                                        <td><?= (int)($row['baby'] ?? 0) ?></td>
+                                        <td><?= number_format((float)($row['total_amount'] ?? 0)) ?> đ</td>
+                                        <td><?= e($row['created_at'] ?? '') ?></td>
+                                        <td>
+                                            <?php if ($status === 'PENDING'): ?>
+                                                <form method="post" onsubmit="return confirm('Xac nhan doi soat booking nay sang PAID?');">
+                                                    <input type="hidden" name="action" value="mark_paid">
+                                                    <input type="hidden" name="booking_id" value="<?= (int)($row['id'] ?? 0) ?>">
+                                                    <input type="hidden" name="return_qs" value="<?= e($returnQuery) ?>">
+                                                    <button type="submit" class="admin-btn admin-btn-primary !px-3 !py-1.5 !text-xs">Doi soat -> PAID</button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="text-xs text-slate-400">-</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="13" class="text-center text-slate-500">Khong co booking phu hop bo loc.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php if ($bookingsTableExists): ?>
+                    <div class="admin-pagination">
+                        <p>Hien thi <?= count($bookings) ?> / <?= (int)$totalRows ?> booking</p>
+                        <div class="admin-page-links">
+                            <?php if ($page > 1): ?>
+                                <a class="admin-page-link" href="bookings.php?<?= e(buildQuery(['page' => $page - 1], ['msg', 'type'])) ?>">Truoc</a>
+                            <?php endif; ?>
+
+                            <?php
+                            $start = max(1, $page - 2);
+                            $end = min($totalPages, $page + 2);
+                            for ($p = $start; $p <= $end; $p++):
+                            ?>
+                                <a class="admin-page-link <?= $p === $page ? 'active' : '' ?>" href="bookings.php?<?= e(buildQuery(['page' => $p], ['msg', 'type'])) ?>"><?= $p ?></a>
+                            <?php endfor; ?>
+
+                            <?php if ($page < $totalPages): ?>
+                                <a class="admin-page-link" href="bookings.php?<?= e(buildQuery(['page' => $page + 1], ['msg', 'type'])) ?>">Sau</a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </section>
+        </main>
+    </div>
+</div>
+
+<script>
+(function() {
+    const body = document.getElementById('adminBody');
+    const toggle = document.getElementById('darkModeToggle');
+    const key = 'smarttourist-admin-dark';
+
+    const saved = localStorage.getItem(key);
+    if (saved === '1') {
+        body.classList.add('admin-dark');
+    }
+
+    function syncLabel() {
+        toggle.textContent = body.classList.contains('admin-dark') ? 'Light mode' : 'Dark mode';
+    }
+    syncLabel();
+
+    toggle.addEventListener('click', function() {
+        body.classList.toggle('admin-dark');
+        localStorage.setItem(key, body.classList.contains('admin-dark') ? '1' : '0');
+        syncLabel();
+    });
+})();
+</script>
 </body>
 </html>

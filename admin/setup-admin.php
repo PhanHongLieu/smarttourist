@@ -40,11 +40,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tao admin | SmartTourist</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/admin.css">
 </head>
-<body class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6">
-        <h1 class="text-2xl font-bold text-slate-800 mb-1">Tao tai khoan admin</h1>
-        <p class="text-sm text-slate-600 mb-6">Thong tin dang nhap se duoc luu bang password hash trong database.</p>
+<body class="admin-theme min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md admin-panel p-6">
+        <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist Admin</p>
+        <h1 class="admin-title mt-1">Tao tai khoan admin</h1>
+        <p class="admin-subtitle mb-6">Thong tin dang nhap duoc bao mat bang password hash.</p>
 
         <?php if ($error !== ''): ?>
             <div class="mb-4 px-3 py-2 rounded-lg bg-red-100 border border-red-200 text-red-700 text-sm">

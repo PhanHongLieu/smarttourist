@@ -378,39 +378,42 @@ $messageType = $_GET['type'] ?? 'success';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Quan tri tour | SmartTourist</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root {
-            --brand: #0f172a;
-            --accent: #0284c7;
-            --soft: #e0f2fe;
-        }
-
-        body {
-            background: radial-gradient(circle at top left, #f0f9ff 0%, #f8fafc 45%, #eef2ff 100%);
-        }
-
-        .panel {
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            background: rgba(255, 255, 255, 0.88);
-            backdrop-filter: blur(6px);
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/admin.css">
 </head>
-<body class="min-h-screen text-slate-800">
-    <main class="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <p class="text-xs uppercase tracking-[0.22em] text-sky-700 font-semibold">SmartTourist Admin</p>
-                <h1 class="text-3xl font-bold text-slate-900 mt-1">Quan tri tour</h1>
-                <p class="text-sm text-slate-600 mt-1">Them, sua, xoa va an/hien tour voi thao tac nhanh.</p>
+<body class="admin-theme" id="adminBody">
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
+            <h2 class="mt-1 font-extrabold text-slate-900">Admin Console</h2>
+            <nav class="mt-6">
+                <a class="sidebar-link active" href="tours.php">Tours</a>
+                <a class="sidebar-link" href="bookings.php">Bookings</a>
+                <a class="sidebar-link" href="payments.php">Payments</a>
+                <a class="sidebar-link" href="settings.php">Settings</a>
+            </nav>
+            <div class="mt-6 pt-4 border-t border-slate-200">
+                <a href="logout.php" class="admin-btn admin-btn-danger w-full">Dang xuat</a>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <button type="button" id="btnAddTour" class="px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700">+ Them tour</button>
-                <a href="bookings.php" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">Dat tour</a>
-                <a href="/index.php" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800">Ve trang chu</a>
-                <a href="logout.php" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm hover:bg-rose-700">Dang xuat</a>
-            </div>
-        </div>
+        </aside>
+
+        <div class="admin-content">
+            <header class="admin-topbar">
+                <div class="admin-shell py-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h1 class="admin-title text-2xl">Quan tri tour</h1>
+                        <p class="admin-subtitle">Them, sua, xoa va an/hien tour voi thao tac nhanh.</p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" id="btnAddTour" class="admin-btn admin-btn-primary">+ Them tour</button>
+                        <a href="bookings.php" class="admin-btn admin-btn-outline">Dat tour</a>
+                        <a href="/index.php" class="admin-btn admin-btn-outline">Ve trang chu</a>
+                        <button type="button" id="darkModeToggle" class="admin-btn admin-btn-outline">Dark mode</button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="admin-shell space-y-6">
 
         <section class="grid gap-4 md:grid-cols-3">
             <article class="panel rounded-2xl p-5 shadow-sm">
@@ -495,7 +498,9 @@ $messageType = $_GET['type'] ?? 'success';
                 </table>
             </div>
         </section>
-    </main>
+            </main>
+        </div>
+    </div>
 
     <form id="actionForm" method="post" class="hidden">
         <input type="hidden" name="action" id="actionFormAction" value="">
@@ -635,6 +640,29 @@ $messageType = $_GET['type'] ?? 'success';
     </div>
 
     <script>
+        (function() {
+            const body = document.getElementById('adminBody');
+            const toggle = document.getElementById('darkModeToggle');
+            const key = 'smarttourist-admin-dark';
+
+            if (localStorage.getItem(key) === '1') {
+                body.classList.add('admin-dark');
+            }
+
+            if (toggle) {
+                const syncLabel = () => {
+                    toggle.textContent = body.classList.contains('admin-dark') ? 'Light mode' : 'Dark mode';
+                };
+                syncLabel();
+
+                toggle.addEventListener('click', function() {
+                    body.classList.toggle('admin-dark');
+                    localStorage.setItem(key, body.classList.contains('admin-dark') ? '1' : '0');
+                    syncLabel();
+                });
+            }
+        })();
+
         const defaults = <?= json_encode($formDefaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
         const tourModal = document.getElementById('tourModal');
