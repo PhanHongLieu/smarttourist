@@ -202,7 +202,7 @@ try {
     <div class="grid md:grid-cols-3 gap-10">
       <?php if (!empty($featuredTours)): ?>
         <?php foreach ($featuredTours as $t): ?>
-          <a href="/tour.php?slug=<?= htmlspecialchars($t['slug']) ?>" class="tour-card bg-white rounded-[2.5rem] overflow-hidden block border border-gray-100 shadow-sm">
+          <a href="tour-detail.php?slug=<?= htmlspecialchars($t['slug']) ?>" class="tour-card bg-white rounded-[2.5rem] overflow-hidden block border border-gray-100 shadow-sm">
             <div class="h-72 relative overflow-hidden">
                 <div class="absolute top-5 left-5 z-10 bg-[var(--gold)] px-4 py-1.5 rounded-full text-[10px] font-black text-[var(--navy)] shadow-lg uppercase">
                     Bán chạy nhất

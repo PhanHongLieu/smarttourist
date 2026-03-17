@@ -125,15 +125,15 @@ try {
 <body class="admin-theme" id="adminBody">
 <div class="admin-layout">
     <aside class="admin-sidebar">
-        <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
-        <h2 class="mt-1 font-extrabold text-slate-900">Bảng điều khiển</h2>
+        <p class="sidebar-brand">SmartTourist</p>
+        <h2 class="sidebar-title">Bảng điều khiển</h2>
         <nav class="mt-6">
             <a class="sidebar-link" href="tours.php">Tour</a>
             <a class="sidebar-link" href="bookings.php">Đặt tour</a>
             <a class="sidebar-link" href="payments.php">Thanh toán</a>
             <a class="sidebar-link active" href="settings.php">Cài đặt</a>
         </nav>
-        <div class="mt-6 pt-4 border-t border-slate-200">
+        <div class="mt-6 pt-4 border-t border-white/15">
             <a href="logout.php" class="admin-btn admin-btn-danger w-full">Đăng xuất</a>
         </div>
     </aside>
@@ -160,7 +160,7 @@ try {
                 <section class="admin-panel p-6">
                     <div class="flex items-center justify-between gap-3 mb-4">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900">Cài đặt hệ thống</h2>
+                            <h2 class="text-lg font-bold" style="color:var(--admin-navy)">Cài đặt hệ thống</h2>
                             <p class="text-sm text-slate-500">Thông tin hệ thống và liên hệ mặc định.</p>
                         </div>
                     </div>
@@ -184,7 +184,7 @@ try {
                 <section class="admin-panel p-6">
                     <div class="flex items-center justify-between gap-3 mb-4">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900">Cài đặt MoMo</h2>
+                            <h2 class="text-lg font-bold" style="color:var(--admin-navy)">Cài đặt MoMo</h2>
                             <p class="text-sm text-slate-500">Cấu hình thanh toán MoMo (được ưu tiên hơn biến môi trường nếu có giá trị).</p>
                         </div>
                     </div>

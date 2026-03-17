@@ -293,15 +293,15 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
 <body class="admin-theme" id="adminBody">
 <div class="admin-layout">
     <aside class="admin-sidebar">
-        <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
-        <h2 class="mt-1 font-extrabold text-slate-900">Bảng điều khiển</h2>
+        <p class="sidebar-brand">SmartTourist</p>
+        <h2 class="sidebar-title">Bảng điều khiển</h2>
         <nav class="mt-6">
             <a class="sidebar-link" href="tours.php">Tour</a>
             <a class="sidebar-link active" href="bookings.php">Đặt tour</a>
             <a class="sidebar-link" href="payments.php">Thanh toán</a>
             <a class="sidebar-link" href="settings.php">Cài đặt</a>
         </nav>
-        <div class="mt-6 pt-4 border-t border-slate-200">
+        <div class="mt-6 pt-4 border-t border-white/15">
             <a href="logout.php" class="admin-btn admin-btn-danger w-full">Đăng xuất</a>
         </div>
     </aside>
@@ -325,11 +325,11 @@ function sortLink(string $column, string $label, string $currentSort, string $cu
                 </article>
                 <article class="admin-stat">
                     <p class="label">Booking chờ thanh toán</p>
-                    <p class="value text-amber-700"><?= (int)$statPending ?></p>
+                    <p class="value" style="color:var(--admin-gold-dark)"><?= (int)$statPending ?></p>
                 </article>
                 <article class="admin-stat">
                     <p class="label">Booking đã thanh toán</p>
-                    <p class="value text-emerald-700"><?= (int)$statPaid ?></p>
+                    <p class="value text-emerald-600"><?= (int)$statPaid ?></p>
                 </article>
             </section>
 

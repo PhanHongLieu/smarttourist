@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="admin-theme min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md admin-panel p-6">
-        <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist Admin</p>
+        <p class="text-xs uppercase tracking-[0.22em] font-semibold" style="color:var(--admin-gold)">SmartTourist Admin</p>
         <h1 class="admin-title mt-1">Đăng nhập hệ thống</h1>
         <p class="admin-subtitle mb-6">Truy cập khu vực quản trị an toàn.</p>
 
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="password" name="password" class="mt-1 w-full border rounded-lg px-3 py-2" autocomplete="current-password" required>
             </label>
 
-            <button type="submit" class="w-full bg-slate-900 text-white py-2.5 rounded-lg font-semibold">
+            <button type="submit" class="w-full admin-btn admin-btn-primary py-2.5 rounded-lg">
                 Đăng nhập
             </button>
         </form>

@@ -15,15 +15,15 @@ adminRequireLogin();
 <body class="admin-theme" id="adminBody">
 <div class="admin-layout">
     <aside class="admin-sidebar">
-        <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
-        <h2 class="mt-1 font-extrabold text-slate-900">Bảng điều khiển</h2>
+        <p class="sidebar-brand">SmartTourist</p>
+        <h2 class="sidebar-title">Bảng điều khiển</h2>
         <nav class="mt-6">
             <a class="sidebar-link" href="tours.php">Tour</a>
             <a class="sidebar-link" href="bookings.php">Đặt tour</a>
             <a class="sidebar-link active" href="payments.php">Thanh toán</a>
             <a class="sidebar-link" href="settings.php">Cài đặt</a>
         </nav>
-        <div class="mt-6 pt-4 border-t border-slate-200">
+        <div class="mt-6 pt-4 border-t border-white/15">
             <a href="logout.php" class="admin-btn admin-btn-danger w-full">Đăng xuất</a>
         </div>
     </aside>
@@ -39,7 +39,7 @@ adminRequireLogin();
         </header>
         <main class="admin-shell">
             <section class="admin-panel p-6">
-                <h2 class="text-lg font-bold text-slate-900">Sắp ra mắt</h2>
+                <h2 class="text-lg font-bold" style="color:var(--admin-navy)">Sắp ra mắt</h2>
                 <p class="text-sm text-slate-600 mt-2">Trang Thanh toán se duoc mo rong cho doi soat MoMo, lich su IPN va export bao cao.</p>
             </section>
         </main>

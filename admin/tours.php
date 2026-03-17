@@ -476,15 +476,15 @@ $messageType = $_GET['type'] ?? 'success';
 <body class="admin-theme" id="adminBody">
     <div class="admin-layout">
         <aside class="admin-sidebar">
-            <p class="text-xs uppercase tracking-[0.22em] text-cyan-700 font-semibold">SmartTourist</p>
-            <h2 class="mt-1 font-extrabold text-slate-900">Bảng điều khiển</h2>
+            <p class="sidebar-brand">SmartTourist</p>
+            <h2 class="sidebar-title">Bảng điều khiển</h2>
             <nav class="mt-6">
                 <a class="sidebar-link active" href="tours.php">Tour</a>
                 <a class="sidebar-link" href="bookings.php">Đặt tour</a>
                 <a class="sidebar-link" href="payments.php">Thanh toán</a>
                 <a class="sidebar-link" href="settings.php">Cài đặt</a>
             </nav>
-            <div class="mt-6 pt-4 border-t border-slate-200">
+            <div class="mt-6 pt-4 border-t border-white/15">
                 <a href="logout.php" class="admin-btn admin-btn-danger w-full">Đăng xuất</a>
             </div>
         </aside>
@@ -508,17 +508,17 @@ $messageType = $_GET['type'] ?? 'success';
             <main class="admin-shell space-y-6">
 
         <section class="grid gap-4 md:grid-cols-3">
-            <article class="admin-panel rounded-2xl p-5 shadow-sm">
-                <p class="text-sm text-slate-500">Tổng số tour</p>
-                <p class="text-3xl font-bold mt-1 text-slate-900"><?= (int)$totalTour ?></p>
+            <article class="admin-stat">
+                <p class="label">Tổng số tour</p>
+                <p class="value"><?= (int)$totalTour ?></p>
             </article>
-            <article class="admin-panel rounded-2xl p-5 shadow-sm">
-                <p class="text-sm text-slate-500">Tour đang hiển thị</p>
-                <p class="text-3xl font-bold mt-1 text-emerald-700"><?= (int)$visibleTour ?></p>
+            <article class="admin-stat">
+                <p class="label">Tour đang hiển thị</p>
+                <p class="value text-emerald-600"><?= (int)$visibleTour ?></p>
             </article>
-            <article class="admin-panel rounded-2xl p-5 shadow-sm">
-                <p class="text-sm text-slate-500">Tour đang ẩn</p>
-                <p class="text-3xl font-bold mt-1 text-amber-700"><?= (int)$hiddenTour ?></p>
+            <article class="admin-stat">
+                <p class="label">Tour đang ẩn</p>
+                <p class="value" style="color:var(--admin-gold-dark)"><?= (int)$hiddenTour ?></p>
             </article>
         </section>
 
@@ -532,8 +532,8 @@ $messageType = $_GET['type'] ?? 'success';
         <?php endif; ?>
 
         <section class="admin-panel rounded-2xl shadow-lg overflow-hidden">
-            <div class="p-4 border-b border-slate-200">
-                <h2 class="text-lg font-semibold text-slate-900">Tour nổi bật trang chủ (3 ô)</h2>
+            <div class="p-4 border-b" style="border-color:rgba(15,29,58,0.08)">
+                <h2 class="text-lg font-semibold" style="color:var(--admin-navy)">Tour nổi bật trang chủ (3 ô)</h2>
                 <p class="text-xs text-slate-500 mt-1">Kéo thả tour vào 3 ô để thay đổi thứ tự hiển thị tại khu vực "Điểm đến hàng đầu cho bạn" ngoài trang chủ.</p>
             </div>
             <form method="post" id="featuredToursForm" class="p-4 grid lg:grid-cols-5 gap-4">
@@ -543,7 +543,7 @@ $messageType = $_GET['type'] ?? 'success';
                 <input type="hidden" name="featured_slot_3" id="featuredSlotInput3" value="<?= (int)$homepageFeatured[3] ?>" required>
 
                 <div class="lg:col-span-3">
-                    <p class="text-sm font-semibold text-slate-800">3 ô hiển thị ngoài trang chủ</p>
+                    <p class="text-sm font-semibold" style="color:var(--admin-navy)">3 ô hiển thị ngoài trang chủ</p>
                     <p class="text-xs text-slate-500 mt-1">Kéo tour từ danh sách bên phải vào từng ô hoặc kéo giữa các ô để đổi thứ tự.</p>
                     <div id="featuredSlotsBoard" class="mt-3 grid md:grid-cols-3 gap-3">
                         <?php for ($slot = 1; $slot <= 3; $slot++): ?>
@@ -556,7 +556,7 @@ $messageType = $_GET['type'] ?? 'success';
                 </div>
 
                 <div class="lg:col-span-2">
-                    <p class="text-sm font-semibold text-slate-800">Tour đang hiển thị (kéo để gán)</p>
+                    <p class="text-sm font-semibold" style="color:var(--admin-navy)">Tour đang hiển thị (kéo để gán)</p>
                     <p class="text-xs text-slate-500 mt-1">Chỉ các tour trạng thái PUBLISHED mới xuất hiện ở đây.</p>
                     <div id="featuredTourPool" class="mt-3 space-y-2 max-h-[320px] overflow-auto pr-1">
                         <?php foreach ($publishedTours as $tourOption): ?>
@@ -572,7 +572,7 @@ $messageType = $_GET['type'] ?? 'success';
                     </div>
                 </div>
 
-                <div class="lg:col-span-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <div class="lg:col-span-5 flex items-center justify-between gap-3 border-t pt-4" style="border-color:rgba(15,29,58,0.06)">
                     <p class="text-xs text-slate-500">Mẹo: một tour chỉ nên nằm ở 1 ô. Kéo lại để thay thế nhanh.</p>
                     <button type="submit" class="admin-btn admin-btn-primary">Lưu 3 tour nổi bật</button>
                 </div>
@@ -580,13 +580,13 @@ $messageType = $_GET['type'] ?? 'success';
         </section>
 
         <section class="admin-panel rounded-2xl shadow-lg overflow-hidden">
-            <div class="p-4 border-b border-slate-200 flex items-center justify-between gap-2">
-                <h2 class="text-lg font-semibold text-slate-900">Danh sách tour</h2>
+            <div class="p-4 border-b flex items-center justify-between gap-2" style="border-color:rgba(15,29,58,0.08)">
+                <h2 class="text-lg font-semibold" style="color:var(--admin-navy)">Danh sách tour</h2>
                 <p class="text-xs text-slate-500">Nhập sửa nhanh bằng modal, không cần chuyển trang.</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
-                    <thead class="bg-slate-50 text-slate-600">
+                    <thead style="background:var(--admin-navy);color:rgba(255,255,255,0.85)">
                         <tr>
                             <th class="px-4 py-3 text-left">ID</th>
                             <th class="px-4 py-3 text-left">Code</th>
@@ -602,7 +602,7 @@ $messageType = $_GET['type'] ?? 'success';
                         <?php if (!empty($tours)): ?>
                             <?php foreach ($tours as $tour): ?>
                                 <?php $isPublished = $tour['status'] === $publishedStatus; ?>
-                                <tr class="border-t border-slate-100 hover:bg-slate-50/70 transition">
+                                <tr class="border-t hover:bg-amber-50/40 transition" style="border-color:#eef2f7">
                                     <td class="px-4 py-3"><?= (int)$tour['id'] ?></td>
                                     <td class="px-4 py-3"><?= e($tour['code']) ?></td>
                                     <td class="px-4 py-3">
@@ -620,7 +620,7 @@ $messageType = $_GET['type'] ?? 'success';
                                     <td class="px-4 py-3 text-right">
                                         <?php $tourJson = e(json_encode($tour, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); ?>
                                         <div class="flex flex-wrap justify-end gap-2">
-                                            <button type="button" class="btnEdit px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700" data-tour="<?= $tourJson ?>">Chỉnh sửa</button>
+                                            <button type="button" class="btnEdit px-3 py-1.5 rounded-lg text-white text-xs font-semibold" style="background:var(--admin-navy-light)" data-tour="<?= $tourJson ?>">Chỉnh sửa</button>
                                             <button type="button" class="btnToggle px-3 py-1.5 rounded-lg text-xs font-semibold <?= $isPublished ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' ?>" data-id="<?= (int)$tour['id'] ?>" data-current-status="<?= e($tour['status']) ?>" data-title="<?= e($tour['title']) ?>" data-mode="<?= $isPublished ? 'hide' : 'show' ?>">
                                                 <?= $isPublished ? 'Ẩn' : 'Hiện' ?>
                                             </button>
@@ -652,8 +652,8 @@ $messageType = $_GET['type'] ?? 'success';
         <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px]" id="tourModalBackdrop"></div>
         <div class="relative h-full w-full overflow-y-auto p-3 md:p-6 flex items-start md:items-center justify-center">
             <div class="admin-panel admin-modal-surface w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden max-h-[94vh] flex flex-col">
-                <div class="p-4 border-b border-slate-200 flex items-center justify-between">
-                    <h3 id="tourModalTitle" class="text-xl font-semibold text-slate-900">Thêm tour mới</h3>
+                <div class="p-4 border-b flex items-center justify-between" style="border-color:rgba(15,29,58,0.08)">
+                    <h3 id="tourModalTitle" class="text-xl font-semibold" style="color:var(--admin-navy)">Thêm tour mới</h3>
                     <button type="button" id="tourModalClose" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Đóng</button>
                 </div>
                 <form id="tourForm" method="post" class="p-4 overflow-y-auto">
@@ -758,7 +758,7 @@ $messageType = $_GET['type'] ?? 'success';
 
                     <div class="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-200 pt-4 mt-6 flex items-center justify-end gap-3">
                         <button type="button" id="tourFormCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Hủy</button>
-                        <button type="submit" id="tourFormSubmit" class="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Lưu tour</button>
+                        <button type="submit" id="tourFormSubmit" class="admin-btn admin-btn-primary px-5 py-2 text-sm">Lưu tour</button>
                     </div>
                 </form>
             </div>
@@ -769,11 +769,11 @@ $messageType = $_GET['type'] ?? 'success';
         <div class="absolute inset-0 bg-slate-900/60" id="confirmBackdrop"></div>
         <div class="relative max-w-md mx-auto mt-40 px-4">
             <div class="admin-panel admin-modal-surface rounded-2xl shadow-2xl p-5">
-                <h3 id="confirmTitle" class="text-lg font-semibold text-slate-900">Xác nhận thao tác</h3>
+                <h3 id="confirmTitle" class="text-lg font-semibold" style="color:var(--admin-navy)">Xác nhận thao tác</h3>
                 <p id="confirmMessage" class="text-sm text-slate-600 mt-2">Bạn có chắc chắn muốn tiếp tục?</p>
                 <div class="mt-5 flex items-center justify-end gap-2">
                     <button type="button" id="confirmCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Hủy</button>
-                    <button type="button" id="confirmAccept" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Xác nhận</button>
+                    <button type="button" id="confirmAccept" class="admin-btn admin-btn-primary px-4 py-2 text-sm">Xác nhận</button>
                 </div>
             </div>
         </div>
@@ -847,7 +847,7 @@ $messageType = $_GET['type'] ?? 'success';
             featuredSlotInputs[slot].value = String(tourId || '');
 
             if (!tour) {
-                slotEl.classList.remove('border-emerald-300', 'bg-emerald-50/70');
+                slotEl.classList.remove('border-amber-400', 'bg-amber-50/70');
                 slotEl.classList.add('border-slate-300', 'bg-slate-50/70');
                 if (contentEl) {
                     contentEl.innerHTML = '<p class="text-xs text-slate-400">Kéo tour vào đây</p>';
@@ -856,10 +856,10 @@ $messageType = $_GET['type'] ?? 'success';
             }
 
             slotEl.classList.remove('border-slate-300', 'bg-slate-50/70');
-            slotEl.classList.add('border-emerald-300', 'bg-emerald-50/70');
+            slotEl.classList.add('border-amber-400', 'bg-amber-50/70');
             if (contentEl) {
                 contentEl.innerHTML = `
-                    <div class="featured-slot-card border border-emerald-200 rounded-lg bg-white p-2 cursor-grab active:cursor-grabbing" draggable="true" data-tour-id="${tour.id}" data-source-slot="${slot}">
+                    <div class="featured-slot-card border border-amber-300 rounded-lg bg-white p-2 cursor-grab active:cursor-grabbing" draggable="true" data-tour-id="${tour.id}" data-source-slot="${slot}">
                         <p class="text-sm font-semibold text-slate-900 line-clamp-2">#${tour.id} - ${escapeHtml(tour.title)}</p>
                         <p class="text-xs text-slate-500 mt-1">Điểm đến: ${escapeHtml(tour.destination || 'Chưa cập nhật')}</p>
                         <button type="button" class="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-700" data-remove-slot="${slot}">Bỏ khỏi ô này</button>
@@ -872,9 +872,9 @@ $messageType = $_GET['type'] ?? 'success';
             document.querySelectorAll('.featured-tour-item').forEach((item) => {
                 const tourId = Number(item.dataset.tourId || 0);
                 const usedSlot = findSlotByTourId(tourId);
-                item.classList.remove('ring-2', 'ring-emerald-300', 'bg-emerald-50');
+                item.classList.remove('ring-2', 'ring-amber-300', 'bg-amber-50');
                 if (usedSlot > 0) {
-                    item.classList.add('ring-2', 'ring-emerald-300', 'bg-emerald-50');
+                    item.classList.add('ring-2', 'ring-amber-300', 'bg-amber-50');
                 }
             });
         }
@@ -936,16 +936,16 @@ $messageType = $_GET['type'] ?? 'success';
         document.querySelectorAll('.featured-slot').forEach((slotEl) => {
             slotEl.addEventListener('dragover', (event) => {
                 event.preventDefault();
-                slotEl.classList.add('ring-2', 'ring-sky-300');
+                slotEl.classList.add('ring-2', 'ring-amber-400');
             });
 
             slotEl.addEventListener('dragleave', () => {
-                slotEl.classList.remove('ring-2', 'ring-sky-300');
+                slotEl.classList.remove('ring-2', 'ring-amber-400');
             });
 
             slotEl.addEventListener('drop', (event) => {
                 event.preventDefault();
-                slotEl.classList.remove('ring-2', 'ring-sky-300');
+                slotEl.classList.remove('ring-2', 'ring-amber-400');
                 const targetSlot = slotEl.dataset.slot || '';
                 const droppedTourId = event.dataTransfer?.getData('text/plain') || '';
                 const sourceSlot = event.dataTransfer?.getData('source-slot') || '';
