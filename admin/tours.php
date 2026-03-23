@@ -103,6 +103,64 @@ function insertRow(PDO $pdo, string $tableName, array $row): void
     $stmt->execute($row);
 }
 
+function uploadTourMainImage(array $file): array
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return ['path' => null, 'error' => null];
+    }
+
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return ['path' => null, 'error' => 'Tải ảnh thất bại. Vui lòng thử lại.'];
+    }
+
+    $size = (int)($file['size'] ?? 0);
+    if ($size <= 0 || $size > 10 * 1024 * 1024) {
+        return ['path' => null, 'error' => 'Ảnh không hợp lệ hoặc vượt quá 10MB.'];
+    }
+
+    $tmpName = (string)($file['tmp_name'] ?? '');
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        return ['path' => null, 'error' => 'Không tìm thấy file upload hợp lệ.'];
+    }
+
+    $mimeType = '';
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo) {
+            $mimeType = (string)finfo_file($finfo, $tmpName);
+            finfo_close($finfo);
+        }
+    }
+
+    $allowed = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'image/gif' => 'gif',
+    ];
+
+    if (!isset($allowed[$mimeType])) {
+        return ['path' => null, 'error' => 'Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.'];
+    }
+
+    $extension = $allowed[$mimeType];
+    $uploadDir = __DIR__ . '/../public/uploads/tours';
+    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
+        return ['path' => null, 'error' => 'Không thể tạo thư mục lưu ảnh.'];
+    }
+
+    $fileName = 'tour_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+    $destination = $uploadDir . '/' . $fileName;
+    if (!move_uploaded_file($tmpName, $destination)) {
+        return ['path' => null, 'error' => 'Không thể lưu ảnh upload.'];
+    }
+
+    return [
+        'path' => '/uploads/tours/' . $fileName,
+        'error' => null,
+    ];
+}
+
 function ensureHomepageFeaturedTable(PDO $pdo): void
 {
     $sql = "
@@ -395,6 +453,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirectWithMessage('Vui lòng nhập tên tour.', 'error');
             }
 
+            $uploadResult = uploadTourMainImage($_FILES['main_image_file'] ?? []);
+            if (!empty($uploadResult['error'])) {
+                redirectWithMessage((string)$uploadResult['error'], 'error');
+            }
+            if (!empty($uploadResult['path'])) {
+                $payload['main_image'] = (string)$uploadResult['path'];
+            }
+
             $includes = normalizeListValues($_POST['include_title'] ?? []);
             $policies = buildPolicyRowsFromPost($_POST);
             $schedules = buildScheduleRowsFromPost($_POST);
@@ -453,6 +519,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $payload = tourPayloadFromPost($_POST);
             if ($payload['title'] === '') {
                 redirectWithMessage('Vui lòng nhập tên tour.', 'error');
+            }
+
+            $uploadResult = uploadTourMainImage($_FILES['main_image_file'] ?? []);
+            if (!empty($uploadResult['error'])) {
+                redirectWithMessage((string)$uploadResult['error'], 'error');
+            }
+            if (!empty($uploadResult['path'])) {
+                $payload['main_image'] = (string)$uploadResult['path'];
             }
 
             $includes = normalizeListValues($_POST['include_title'] ?? []);
@@ -937,7 +1011,7 @@ $messageType = $_GET['type'] ?? 'success';
                     <h3 id="tourModalTitle" class="text-xl font-semibold" style="color:var(--admin-navy)">Thêm tour mới</h3>
                     <button type="button" id="tourModalClose" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Đóng</button>
                 </div>
-                <form id="tourForm" method="post" class="p-4 overflow-y-auto">
+                <form id="tourForm" method="post" enctype="multipart/form-data" class="p-4 overflow-y-auto">
                     <input type="hidden" name="action" id="tourFormAction" value="add">
                     <input type="hidden" name="id" id="tourFormId" value="0">
 
@@ -984,6 +1058,12 @@ $messageType = $_GET['type'] ?? 'success';
                         <label class="block">
                             <span class="text-sm text-slate-700">URL ảnh đại diện</span>
                             <input name="main_image" id="f_main_image" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="assets/image/...">
+                        </label>
+
+                        <label class="block md:col-span-2">
+                            <span class="text-sm text-slate-700">Upload ảnh từ thiết bị (ưu tiên hơn URL nếu có chọn file)</span>
+                            <input type="file" name="main_image_file" id="f_main_image_file" accept="image/jpeg,image/png,image/webp,image/gif" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900">
+                            <p class="text-xs text-slate-500 mt-1">Dung lượng tối đa 10MB. Hỗ trợ JPG, PNG, WEBP, GIF.</p>
                         </label>
 
                         <label class="block">
@@ -1296,6 +1376,7 @@ $messageType = $_GET['type'] ?? 'success';
         const tourFormAction = document.getElementById('tourFormAction');
         const tourFormId = document.getElementById('tourFormId');
         const tourFormSubmit = document.getElementById('tourFormSubmit');
+        const mainImageFileInput = document.getElementById('f_main_image_file');
         const includesRows = document.getElementById('includesRows');
         const policyRows = document.getElementById('policyRows');
         const scheduleRows = document.getElementById('scheduleRows');
@@ -1411,6 +1492,9 @@ $messageType = $_GET['type'] ?? 'success';
             setField('f_destination', source.destination);
             setField('f_vehicle', source.vehicle);
             setField('f_main_image', source.main_image);
+            if (mainImageFileInput) {
+                mainImageFileInput.value = '';
+            }
             setField('f_highlight', source.highlight);
             setField('f_policy', source.policy);
             setField('f_duration_days', source.duration_days || 1);
