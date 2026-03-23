@@ -178,6 +178,141 @@ function tourPayloadFromPost(array $postData): array
     ];
 }
 
+function normalizeListValues($values): array
+{
+    if (!is_array($values)) {
+        return [];
+    }
+
+    $result = [];
+    foreach ($values as $value) {
+        $text = trim((string)$value);
+        if ($text !== '') {
+            $result[] = $text;
+        }
+    }
+    return $result;
+}
+
+function buildPolicyRowsFromPost(array $postData): array
+{
+    $titles = $postData['policy_title'] ?? [];
+    $descriptions = $postData['policy_description'] ?? [];
+
+    if (!is_array($titles)) {
+        $titles = [];
+    }
+    if (!is_array($descriptions)) {
+        $descriptions = [];
+    }
+
+    $rows = [];
+    $count = max(count($titles), count($descriptions));
+    for ($i = 0; $i < $count; $i++) {
+        $title = trim((string)($titles[$i] ?? ''));
+        $description = trim((string)($descriptions[$i] ?? ''));
+        if ($title === '' && $description === '') {
+            continue;
+        }
+
+        $rows[] = [
+            'title' => $title,
+            'description' => $description,
+        ];
+    }
+
+    return $rows;
+}
+
+function buildScheduleRowsFromPost(array $postData): array
+{
+    $dayNumbers = $postData['schedule_day_number'] ?? [];
+    $titles = $postData['schedule_title'] ?? [];
+    $descriptions = $postData['schedule_description'] ?? [];
+
+    if (!is_array($dayNumbers)) {
+        $dayNumbers = [];
+    }
+    if (!is_array($titles)) {
+        $titles = [];
+    }
+    if (!is_array($descriptions)) {
+        $descriptions = [];
+    }
+
+    $rows = [];
+    $count = max(count($dayNumbers), count($titles), count($descriptions));
+    for ($i = 0; $i < $count; $i++) {
+        $dayNumber = max(1, (int)($dayNumbers[$i] ?? 1));
+        $title = trim((string)($titles[$i] ?? ''));
+        $description = trim((string)($descriptions[$i] ?? ''));
+        if ($title === '' && $description === '') {
+            continue;
+        }
+
+        $rows[] = [
+            'day_number' => $dayNumber,
+            'title' => $title,
+            'description' => $description,
+        ];
+    }
+
+    usort($rows, static function (array $a, array $b): int {
+        return $a['day_number'] <=> $b['day_number'];
+    });
+
+    return $rows;
+}
+
+function saveTourRelatedData(PDO $pdo, int $tourId, array $includes, array $policies, array $schedules): void
+{
+    if ($tourId <= 0) {
+        return;
+    }
+
+    if (tableExists($pdo, 'tour_includes')) {
+        $pdo->prepare('DELETE FROM tour_includes WHERE tour_id = :tour_id')->execute(['tour_id' => $tourId]);
+        if (!empty($includes)) {
+            $stmt = $pdo->prepare('INSERT INTO tour_includes (tour_id, title) VALUES (:tour_id, :title)');
+            foreach ($includes as $title) {
+                $stmt->execute([
+                    'tour_id' => $tourId,
+                    'title' => $title,
+                ]);
+            }
+        }
+    }
+
+    if (tableExists($pdo, 'tour_policy')) {
+        $pdo->prepare('DELETE FROM tour_policy WHERE tour_id = :tour_id')->execute(['tour_id' => $tourId]);
+        if (!empty($policies)) {
+            $stmt = $pdo->prepare('INSERT INTO tour_policy (tour_id, title, description) VALUES (:tour_id, :title, :description)');
+            foreach ($policies as $policy) {
+                $stmt->execute([
+                    'tour_id' => $tourId,
+                    'title' => (string)($policy['title'] ?? ''),
+                    'description' => (string)($policy['description'] ?? ''),
+                ]);
+            }
+        }
+    }
+
+    if (tableExists($pdo, 'tour_schedule')) {
+        $pdo->prepare('DELETE FROM tour_schedule WHERE tour_id = :tour_id')->execute(['tour_id' => $tourId]);
+        if (!empty($schedules)) {
+            $stmt = $pdo->prepare('INSERT INTO tour_schedule (tour_id, day_number, title, description) VALUES (:tour_id, :day_number, :title, :description)');
+            foreach ($schedules as $schedule) {
+                $stmt->execute([
+                    'tour_id' => $tourId,
+                    'day_number' => max(1, (int)($schedule['day_number'] ?? 1)),
+                    'title' => (string)($schedule['title'] ?? ''),
+                    'description' => (string)($schedule['description'] ?? ''),
+                ]);
+            }
+        }
+    }
+}
+
 $statusOptions = getTourStatusOptions($pdo);
 $publishedStatus = resolvePublishedStatus($statusOptions);
 $hiddenStatus = resolveHiddenStatus($statusOptions, $publishedStatus);
@@ -202,6 +337,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirectWithMessage('Vui lòng nhập tên tour.', 'error');
             }
 
+            $includes = normalizeListValues($_POST['include_title'] ?? []);
+            $policies = buildPolicyRowsFromPost($_POST);
+            $schedules = buildScheduleRowsFromPost($_POST);
+
             $status = (string)($_POST['status'] ?? $publishedStatus);
             if (!in_array($status, $statusOptions, true)) {
                 $status = $publishedStatus;
@@ -222,6 +361,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 :price_adult, :price_child, :price_baby, :max_passengers, :status
             )";
 
+            $pdo->beginTransaction();
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 'code' => $payload['code'],
@@ -244,6 +384,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'status' => $status,
             ]);
 
+            $tourId = (int)$pdo->lastInsertId();
+            saveTourRelatedData($pdo, $tourId, $includes, $policies, $schedules);
+            $pdo->commit();
+
             redirectWithMessage('Thêm tour thành công.');
         }
 
@@ -257,6 +401,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($payload['title'] === '') {
                 redirectWithMessage('Vui lòng nhập tên tour.', 'error');
             }
+
+            $includes = normalizeListValues($_POST['include_title'] ?? []);
+            $policies = buildPolicyRowsFromPost($_POST);
+            $schedules = buildScheduleRowsFromPost($_POST);
 
             $status = (string)($_POST['status'] ?? $publishedStatus);
             if (!in_array($status, $statusOptions, true)) {
@@ -287,6 +435,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 status = :status
             WHERE id = :id";
 
+            $pdo->beginTransaction();
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 'id' => $tourId,
@@ -309,6 +458,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'max_passengers' => $payload['max_passengers'],
                 'status' => $status,
             ]);
+
+            saveTourRelatedData($pdo, $tourId, $includes, $policies, $schedules);
+            $pdo->commit();
 
             redirectWithMessage('Cập nhật tour thành công.');
         }
@@ -438,6 +590,72 @@ $publishedTourBrief = array_map(static function ($tour): array {
         'departure_location' => (string)($tour['departure_location'] ?? ''),
     ];
 }, $publishedTours);
+
+$tourIncludesByTourId = [];
+try {
+    if (tableExists($pdo, 'tour_includes')) {
+        $stmt = $pdo->query('SELECT tour_id, title FROM tour_includes ORDER BY id ASC');
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $tourId = (int)($row['tour_id'] ?? 0);
+            if ($tourId <= 0) {
+                continue;
+            }
+            if (!isset($tourIncludesByTourId[$tourId])) {
+                $tourIncludesByTourId[$tourId] = [];
+            }
+            $tourIncludesByTourId[$tourId][] = [
+                'title' => (string)($row['title'] ?? ''),
+            ];
+        }
+    }
+} catch (Throwable $e) {
+    $tourIncludesByTourId = [];
+}
+
+$tourPoliciesByTourId = [];
+try {
+    if (tableExists($pdo, 'tour_policy')) {
+        $stmt = $pdo->query('SELECT tour_id, title, description FROM tour_policy ORDER BY id ASC');
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $tourId = (int)($row['tour_id'] ?? 0);
+            if ($tourId <= 0) {
+                continue;
+            }
+            if (!isset($tourPoliciesByTourId[$tourId])) {
+                $tourPoliciesByTourId[$tourId] = [];
+            }
+            $tourPoliciesByTourId[$tourId][] = [
+                'title' => (string)($row['title'] ?? ''),
+                'description' => (string)($row['description'] ?? ''),
+            ];
+        }
+    }
+} catch (Throwable $e) {
+    $tourPoliciesByTourId = [];
+}
+
+$tourSchedulesByTourId = [];
+try {
+    if (tableExists($pdo, 'tour_schedule')) {
+        $stmt = $pdo->query('SELECT tour_id, day_number, title, description FROM tour_schedule ORDER BY day_number ASC, id ASC');
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $tourId = (int)($row['tour_id'] ?? 0);
+            if ($tourId <= 0) {
+                continue;
+            }
+            if (!isset($tourSchedulesByTourId[$tourId])) {
+                $tourSchedulesByTourId[$tourId] = [];
+            }
+            $tourSchedulesByTourId[$tourId][] = [
+                'day_number' => max(1, (int)($row['day_number'] ?? 1)),
+                'title' => (string)($row['title'] ?? ''),
+                'description' => (string)($row['description'] ?? ''),
+            ];
+        }
+    }
+} catch (Throwable $e) {
+    $tourSchedulesByTourId = [];
+}
 
 $formDefaults = [
     'id' => 0,
@@ -764,6 +982,33 @@ $messageType = $_GET['type'] ?? 'success';
                             <span class="text-sm text-slate-700">Chính sách</span>
                             <textarea name="policy" id="f_policy" rows="3" class="mt-1 w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900" placeholder="Chính sách hoàn hủy, trẻ em..."></textarea>
                         </label>
+
+                        <div class="block md:col-span-2 rounded-xl border border-slate-200 p-3 bg-slate-50/40">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-semibold text-slate-700">Tour bao gồm</span>
+                                <button type="button" id="btnAddIncludeRow" class="px-2.5 py-1 rounded-md text-xs font-semibold border border-slate-300 hover:bg-white">+ Thêm mục</button>
+                            </div>
+                            <div id="includesRows" class="mt-3 space-y-2"></div>
+                            <p class="text-xs text-slate-500 mt-2">Nhập từng dịch vụ bao gồm trong tour.</p>
+                        </div>
+
+                        <div class="block md:col-span-2 rounded-xl border border-slate-200 p-3 bg-slate-50/40">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-semibold text-slate-700">Chi tiết chính sách</span>
+                                <button type="button" id="btnAddPolicyRow" class="px-2.5 py-1 rounded-md text-xs font-semibold border border-slate-300 hover:bg-white">+ Thêm dòng</button>
+                            </div>
+                            <div id="policyRows" class="mt-3 space-y-3"></div>
+                            <p class="text-xs text-slate-500 mt-2">Ví dụ: "Trẻ em", "Hoàn hủy"...</p>
+                        </div>
+
+                        <div class="block md:col-span-2 rounded-xl border border-slate-200 p-3 bg-slate-50/40">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-semibold text-slate-700">Lịch trình chi tiết</span>
+                                <button type="button" id="btnAddScheduleRow" class="px-2.5 py-1 rounded-md text-xs font-semibold border border-slate-300 hover:bg-white">+ Thêm ngày</button>
+                            </div>
+                            <div id="scheduleRows" class="mt-3 space-y-3"></div>
+                            <p class="text-xs text-slate-500 mt-2">Mỗi dòng tương ứng 1 ngày trong lịch trình.</p>
+                        </div>
                     </div>
 
                     <div class="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-200 pt-4 mt-6 flex items-center justify-end gap-3">
@@ -989,17 +1234,110 @@ $messageType = $_GET['type'] ?? 'success';
         renderFeaturedBoard();
 
         const defaults = <?= json_encode($formDefaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const includesByTourId = <?= json_encode($tourIncludesByTourId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const policiesByTourId = <?= json_encode($tourPoliciesByTourId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const schedulesByTourId = <?= json_encode($tourSchedulesByTourId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
         const tourModal = document.getElementById('tourModal');
         const tourModalTitle = document.getElementById('tourModalTitle');
         const tourFormAction = document.getElementById('tourFormAction');
         const tourFormId = document.getElementById('tourFormId');
         const tourFormSubmit = document.getElementById('tourFormSubmit');
+        const includesRows = document.getElementById('includesRows');
+        const policyRows = document.getElementById('policyRows');
+        const scheduleRows = document.getElementById('scheduleRows');
 
         function setField(id, value) {
             const el = document.getElementById(id);
             if (!el) return;
             el.value = value ?? '';
+        }
+
+        function createIncludeRow(value) {
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-[1fr_auto] gap-2';
+            row.setAttribute('data-dynamic-row', 'include');
+            row.innerHTML = `
+                <input name="include_title[]" class="w-full border border-slate-300 bg-white rounded-lg px-3 py-2 text-slate-900 text-sm" placeholder="VD: Xe đưa đón" value="${escapeHtml(value || '')}">
+                <button type="button" class="px-3 py-2 rounded-lg border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-50" data-remove-row="1">Xóa</button>
+            `;
+            return row;
+        }
+
+        function createPolicyRow(data) {
+            const row = document.createElement('div');
+            row.className = 'border border-slate-200 bg-white rounded-lg p-3 space-y-2';
+            row.setAttribute('data-dynamic-row', 'policy');
+            row.innerHTML = `
+                <div class="grid grid-cols-[1fr_auto] gap-2 items-start">
+                    <input name="policy_title[]" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Tiêu đề chính sách" value="${escapeHtml(data?.title || '')}">
+                    <button type="button" class="px-3 py-2 rounded-lg border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-50" data-remove-row="1">Xóa</button>
+                </div>
+                <textarea name="policy_description[]" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Nội dung chính sách">${escapeHtml(data?.description || '')}</textarea>
+            `;
+            return row;
+        }
+
+        function createScheduleRow(data) {
+            const dayNumber = Math.max(1, parseInt(data?.day_number || 1, 10) || 1);
+            const row = document.createElement('div');
+            row.className = 'border border-slate-200 bg-white rounded-lg p-3 space-y-2';
+            row.setAttribute('data-dynamic-row', 'schedule');
+            row.innerHTML = `
+                <div class="grid md:grid-cols-[120px_1fr_auto] gap-2 items-start">
+                    <input type="number" min="1" name="schedule_day_number[]" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" value="${dayNumber}">
+                    <input name="schedule_title[]" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Tiêu đề ngày" value="${escapeHtml(data?.title || '')}">
+                    <button type="button" class="px-3 py-2 rounded-lg border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-50" data-remove-row="1">Xóa</button>
+                </div>
+                <textarea name="schedule_description[]" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Mô tả hoạt động trong ngày">${escapeHtml(data?.description || '')}</textarea>
+            `;
+            return row;
+        }
+
+        function bindRowRemoveEvents(container) {
+            container?.querySelectorAll('[data-remove-row]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const row = btn.closest('[data-dynamic-row]');
+                    if (row) {
+                        row.remove();
+                    }
+                });
+            });
+        }
+
+        function resetDynamicSections() {
+            if (includesRows) includesRows.innerHTML = '';
+            if (policyRows) policyRows.innerHTML = '';
+            if (scheduleRows) scheduleRows.innerHTML = '';
+        }
+
+        function fillDynamicSections(tourId) {
+            const idKey = String(Number(tourId) || 0);
+            const includeList = Array.isArray(includesByTourId[idKey]) ? includesByTourId[idKey] : [];
+            const policyList = Array.isArray(policiesByTourId[idKey]) ? policiesByTourId[idKey] : [];
+            const scheduleList = Array.isArray(schedulesByTourId[idKey]) ? schedulesByTourId[idKey] : [];
+
+            if (includeList.length > 0) {
+                includeList.forEach((item) => includesRows?.appendChild(createIncludeRow(item?.title || '')));
+            } else {
+                includesRows?.appendChild(createIncludeRow(''));
+            }
+
+            if (policyList.length > 0) {
+                policyList.forEach((item) => policyRows?.appendChild(createPolicyRow(item || {})));
+            } else {
+                policyRows?.appendChild(createPolicyRow({}));
+            }
+
+            if (scheduleList.length > 0) {
+                scheduleList.forEach((item) => scheduleRows?.appendChild(createScheduleRow(item || {})));
+            } else {
+                scheduleRows?.appendChild(createScheduleRow({ day_number: 1 }));
+            }
+
+            bindRowRemoveEvents(includesRows);
+            bindRowRemoveEvents(policyRows);
+            bindRowRemoveEvents(scheduleRows);
         }
 
         function openTourModal(mode, data) {
@@ -1030,6 +1368,9 @@ $messageType = $_GET['type'] ?? 'success';
             setField('f_max_passengers', source.max_passengers || 1);
             setField('f_status', source.status || defaults.status);
 
+            resetDynamicSections();
+            fillDynamicSections(isEdit ? (source.id || 0) : 0);
+
             tourModal.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
         }
@@ -1053,6 +1394,22 @@ $messageType = $_GET['type'] ?? 'success';
                     openTourModal('edit', defaults);
                 }
             });
+        });
+
+        document.getElementById('btnAddIncludeRow')?.addEventListener('click', () => {
+            includesRows?.appendChild(createIncludeRow(''));
+            bindRowRemoveEvents(includesRows);
+        });
+
+        document.getElementById('btnAddPolicyRow')?.addEventListener('click', () => {
+            policyRows?.appendChild(createPolicyRow({}));
+            bindRowRemoveEvents(policyRows);
+        });
+
+        document.getElementById('btnAddScheduleRow')?.addEventListener('click', () => {
+            const count = scheduleRows?.children.length || 0;
+            scheduleRows?.appendChild(createScheduleRow({ day_number: count + 1 }));
+            bindRowRemoveEvents(scheduleRows);
         });
 
         const actionForm = document.getElementById('actionForm');

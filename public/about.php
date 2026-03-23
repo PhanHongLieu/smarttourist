@@ -46,8 +46,8 @@
     </p>
 
     <div class="mt-10 flex flex-col sm:flex-row gap-4">
-      <a href="/smarttourist/public/tours.php" class="bg-gradient-to-r from-[var(--gold)] to-yellow-500 text-black px-8 py-4 rounded-xl font-semibold shadow-lg">Khám phá tour</a>
-      <a href="/smarttourist/public/contact.php" class="border-2 border-[var(--gold)] text-[var(--gold)] px-8 py-4 rounded-xl font-semibold bg-white/5">Liên hệ chúng tôi</a>
+      <a href="tours.php" class="bg-gradient-to-r from-[var(--gold)] to-yellow-500 text-black px-8 py-4 rounded-xl font-semibold shadow-lg">Khám phá tour</a>
+      <a href="contact.php" class="border-2 border-[var(--gold)] text-[var(--gold)] px-8 py-4 rounded-xl font-semibold bg-white/5">Liên hệ chúng tôi</a>
     </div>
   </div>
 </section>
