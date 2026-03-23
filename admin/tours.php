@@ -182,6 +182,16 @@ $statusOptions = getTourStatusOptions($pdo);
 $publishedStatus = resolvePublishedStatus($statusOptions);
 $hiddenStatus = resolveHiddenStatus($statusOptions, $publishedStatus);
 
+// Ensure id column is AUTO_INCREMENT (fixes "Field 'id' doesn't have a default value")
+try {
+    $col = $pdo->query("SHOW COLUMNS FROM tours LIKE 'id'")->fetch();
+    if ($col && stripos($col['Extra'] ?? '', 'auto_increment') === false) {
+        $pdo->exec("ALTER TABLE tours MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT");
+    }
+} catch (Throwable $e) {
+    // ignore if ALTER fails (limited permissions)
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
