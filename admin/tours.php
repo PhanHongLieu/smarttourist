@@ -42,6 +42,67 @@ function tableExists(PDO $pdo, string $tableName): bool
     return (bool)$stmt->fetchColumn();
 }
 
+function tableNeedsManualId(PDO $pdo, string $tableName): bool
+{
+    static $cache = [];
+    if (array_key_exists($tableName, $cache)) {
+        return $cache[$tableName];
+    }
+
+    try {
+        $stmt = $pdo->query("SHOW COLUMNS FROM {$tableName} LIKE 'id'");
+        $row = $stmt ? $stmt->fetch() : false;
+        if (!$row) {
+            $cache[$tableName] = false;
+            return false;
+        }
+
+        $isAutoIncrement = stripos((string)($row['Extra'] ?? ''), 'auto_increment') !== false;
+        if ($isAutoIncrement) {
+            $cache[$tableName] = false;
+            return false;
+        }
+
+        $isNullable = strtoupper((string)($row['Null'] ?? 'YES')) === 'YES';
+        $hasDefault = array_key_exists('Default', $row) && $row['Default'] !== null;
+        $cache[$tableName] = !$isNullable && !$hasDefault;
+        return $cache[$tableName];
+    } catch (Throwable $e) {
+        $cache[$tableName] = false;
+        return false;
+    }
+}
+
+function nextManualId(PDO $pdo, string $tableName): int
+{
+    static $nextByTable = [];
+    if (!isset($nextByTable[$tableName])) {
+        $stmt = $pdo->query("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM {$tableName}");
+        $nextByTable[$tableName] = (int)($stmt->fetchColumn() ?: 1);
+    }
+
+    $id = $nextByTable[$tableName];
+    $nextByTable[$tableName] = $id + 1;
+    return $id;
+}
+
+function insertRow(PDO $pdo, string $tableName, array $row): void
+{
+    if (tableNeedsManualId($pdo, $tableName) && !array_key_exists('id', $row)) {
+        $row = ['id' => nextManualId($pdo, $tableName)] + $row;
+    }
+
+    $columns = array_keys($row);
+    $columnSql = implode(', ', $columns);
+    $placeholderSql = implode(', ', array_map(static function (string $column): string {
+        return ':' . $column;
+    }, $columns));
+
+    $sql = "INSERT INTO {$tableName} ({$columnSql}) VALUES ({$placeholderSql})";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($row);
+}
+
 function ensureHomepageFeaturedTable(PDO $pdo): void
 {
     $sql = "
@@ -273,9 +334,8 @@ function saveTourRelatedData(PDO $pdo, int $tourId, array $includes, array $poli
     if (tableExists($pdo, 'tour_includes')) {
         $pdo->prepare('DELETE FROM tour_includes WHERE tour_id = :tour_id')->execute(['tour_id' => $tourId]);
         if (!empty($includes)) {
-            $stmt = $pdo->prepare('INSERT INTO tour_includes (tour_id, title) VALUES (:tour_id, :title)');
             foreach ($includes as $title) {
-                $stmt->execute([
+                insertRow($pdo, 'tour_includes', [
                     'tour_id' => $tourId,
                     'title' => $title,
                 ]);
@@ -286,9 +346,8 @@ function saveTourRelatedData(PDO $pdo, int $tourId, array $includes, array $poli
     if (tableExists($pdo, 'tour_policy')) {
         $pdo->prepare('DELETE FROM tour_policy WHERE tour_id = :tour_id')->execute(['tour_id' => $tourId]);
         if (!empty($policies)) {
-            $stmt = $pdo->prepare('INSERT INTO tour_policy (tour_id, title, description) VALUES (:tour_id, :title, :description)');
             foreach ($policies as $policy) {
-                $stmt->execute([
+                insertRow($pdo, 'tour_policy', [
                     'tour_id' => $tourId,
                     'title' => (string)($policy['title'] ?? ''),
                     'description' => (string)($policy['description'] ?? ''),
@@ -300,9 +359,8 @@ function saveTourRelatedData(PDO $pdo, int $tourId, array $includes, array $poli
     if (tableExists($pdo, 'tour_schedule')) {
         $pdo->prepare('DELETE FROM tour_schedule WHERE tour_id = :tour_id')->execute(['tour_id' => $tourId]);
         if (!empty($schedules)) {
-            $stmt = $pdo->prepare('INSERT INTO tour_schedule (tour_id, day_number, title, description) VALUES (:tour_id, :day_number, :title, :description)');
             foreach ($schedules as $schedule) {
-                $stmt->execute([
+                insertRow($pdo, 'tour_schedule', [
                     'tour_id' => $tourId,
                     'day_number' => max(1, (int)($schedule['day_number'] ?? 1)),
                     'title' => (string)($schedule['title'] ?? ''),
@@ -349,21 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $baseSlug = normalizeSlug($payload['slug'] !== '' ? $payload['slug'] : $payload['title']);
             $payload['slug'] = uniqueSlug($pdo, $baseSlug);
 
-            $sql = "INSERT INTO tours (
-                code, title, slug, overview, description,
-                departure_location, destination, vehicle, main_image,
-                highlight, policy, duration_days, duration_nights,
-                price_adult, price_child, price_baby, max_passengers, status
-            ) VALUES (
-                :code, :title, :slug, :overview, :description,
-                :departure_location, :destination, :vehicle, :main_image,
-                :highlight, :policy, :duration_days, :duration_nights,
-                :price_adult, :price_child, :price_baby, :max_passengers, :status
-            )";
-
-            $pdo->beginTransaction();
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([
+            $insertData = [
                 'code' => $payload['code'],
                 'title' => $payload['title'],
                 'slug' => $payload['slug'],
@@ -382,9 +426,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'price_baby' => $payload['price_baby'],
                 'max_passengers' => $payload['max_passengers'],
                 'status' => $status,
-            ]);
+            ];
 
-            $tourId = (int)$pdo->lastInsertId();
+            $pdo->beginTransaction();
+            if (tableNeedsManualId($pdo, 'tours')) {
+                $tourId = nextManualId($pdo, 'tours');
+                $insertData = ['id' => $tourId] + $insertData;
+                insertRow($pdo, 'tours', $insertData);
+            } else {
+                insertRow($pdo, 'tours', $insertData);
+                $tourId = (int)$pdo->lastInsertId();
+            }
+
             saveTourRelatedData($pdo, $tourId, $includes, $policies, $schedules);
             $pdo->commit();
 
